@@ -309,29 +309,29 @@ export function ListeningPage({ onSend, onComplete, onHome }: ListeningPageProps
         : phase === "loading"
           ? "Starting voice..."
           : phase === "downloading"
-            ? `Downloading voice model · ${percent}%`
+            ? `Downloading Whisper · ${percent}%`
             : phase === "needs-model"
-              ? "Download the local voice model"
+              ? "Download speech recognition (Whisper)"
               : phase === "checking"
                 ? "Getting NEAR ready..."
                 : "Voice is unavailable · Hold N to retry";
 
   return <ConversationPanel title="" description="" onHome={leave} hideText hideIcon showNavigation={false}>
-    <div className="flex w-full min-w-0 flex-col items-center justify-center gap-1.5 text-center">
+    <div className="flex w-full min-w-0 flex-col items-center justify-center gap-1 px-4 py-0 text-center">
       <button type="button" className={`${buttonSecondary} !h-[24px] !min-w-0 !self-start !px-2 text-[9px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67e4ef]`} onClick={leave}>
         <BackIcon />Back to Home
       </button>
-      <VoiceWaveform mode={animationMode} />
+      <div className="-my-1"><VoiceWaveform mode={animationMode} /></div>
       {phase === "speaking" ? <>
         <p className="m-0 min-h-[2.4em] max-h-[3em] w-full overflow-hidden text-center text-[11px] leading-[1.2] text-[#e3ebf1]" aria-live="off">{spokenSubtitle}</p>
         <span className="sr-only" role="status" aria-live="polite">NEAR is speaking</span>
       </> : <p className="m-0 text-[11px] font-medium text-[#e3ebf1]" role="status" aria-live="polite">{statusText}</p>}
-      {(phase === "needs-model" || (phase === "error" && !model?.installed)) && <div className="flex items-center gap-2">
-        <span className="text-[9px] text-[#c6d2de]">Optional offline model · about 32 MB</span>
-        <button type="button" className={`${buttonPrimary} !h-[25px] !min-w-0 !px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67e4ef]`} onClick={() => void downloadModel()}>Download</button>
+      {(phase === "needs-model" || (phase === "error" && !model?.installed)) && <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-2">
+        <span className="text-[9px] text-[#c6d2de]">Whisper listens to you · separate from Bryce · about 32 MB</span>
+        <button type="button" className={`${buttonPrimary} !h-[25px] !min-w-0 !px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67e4ef]`} onClick={() => void downloadModel()}>Download Whisper</button>
       </div>}
-      {phase === "downloading" && <div className="flex w-full items-center gap-2">
-        <progress className="h-1.5 min-w-0 flex-1 accent-[#49dceb]" value={downloadedBytes} max={downloadTotal || model?.sizeBytes || 32_200_000} aria-label={`Downloading speech model, ${percent}%`} />
+      {phase === "downloading" && <div className="flex w-full items-center gap-3 px-2">
+        <progress className="h-1.5 min-w-0 flex-1 accent-[#49dceb]" value={downloadedBytes} max={downloadTotal || model?.sizeBytes || 32_200_000} aria-label={`Downloading Whisper speech recognition model, ${percent}%`} />
         <button type="button" className={`${buttonSecondary} !h-[25px] !min-w-0 !px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67e4ef]`} onClick={() => void cancelDownload()}>Cancel</button>
       </div>}
       {phase === "error" && <p className="m-0 max-h-7 overflow-y-auto text-[9px] text-[#ff9c8f]" role="alert">{error || "Something went wrong. Hold N to try again."}</p>}

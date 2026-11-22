@@ -18,6 +18,31 @@ It does not change the system PATH. Python and these tools are build dependencie
 users of the compiled app do not need them. Do not set
 `WHISPER_DONT_GENERATE_BINDINGS`: the bundled bindings are not suitable for Windows.
 
+## macOS development and builds
+
+NEAR supports macOS on Apple Silicon and Intel. Install Xcode Command Line Tools,
+Node.js, Rust via rustup, and the native Whisper build tools:
+
+```sh
+xcode-select --install
+brew install cmake llvm
+export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
+npm install
+npm run tauri dev
+```
+
+To create a distributable `.app` and `.dmg` on a Mac:
+
+```sh
+npm run tauri -- build --bundles app,dmg
+```
+
+The build includes the macOS app icon and microphone permission prompt. ChatGPT
+OAuth credentials are stored in the macOS Keychain. The optional bundled Bryce
+voice and system-wide media session controls are currently Windows-only; macOS
+uses its system speech voices, and NEAR opens YouTube playback in the browser.
+Build macOS packages on macOS because Apple’s SDK and signing tools are required.
+
 Voice transcription runs locally in short overlapping audio windows. The optional
 multilingual Whisper tiny Q5_1 model is about 32 MB and downloads only when the user
 chooses. The model loads into memory when recording starts; microphone audio is not
