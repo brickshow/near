@@ -184,6 +184,7 @@ function App() {
     void resizeNotch(true, false);
   }, [page, resizeNotch]);
   const finishSplash = useCallback(() => {
+    if (import.meta.env.DEV) localStorage.removeItem(SETUP_COMPLETE_KEY);
     setPage(localStorage.getItem(SETUP_COMPLETE_KEY) === "true" ? "home" : "welcome");
   }, []);
   const handleConnectionReady = useCallback(
@@ -779,7 +780,7 @@ function App() {
             }
           />
           <div
-            className={`relative z-[1] overflow-x-hidden overscroll-contain ${reminderVisible || page === "test-voice" || page === "bible-setup" ? "overflow-y-hidden" : "overflow-y-auto [scrollbar-color:rgba(140,170,196,0.35)_transparent] [scrollbar-width:thin]"} ${showProgress ? "h-[calc(100%-60px)]" : "h-[calc(100%-30px)]"}`}
+            className={`relative z-[1] overflow-x-hidden overscroll-contain ${reminderVisible || page === "test-voice" || page === "bible-setup" || page === "listening" ? "overflow-y-hidden" : "overflow-y-auto [scrollbar-color:rgba(140,170,196,0.35)_transparent] [scrollbar-width:thin]"} ${showProgress ? "h-[calc(100%-60px)]" : "h-[calc(100%-30px)]"}`}
             key={page}
           >
             {reminderVisible ? <ReminderPreviewPage key={reminderCycle} voiceName={nearVoice} /> : renderPage()}

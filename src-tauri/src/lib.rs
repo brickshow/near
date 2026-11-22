@@ -216,6 +216,86 @@ struct StoredCredentials {
     metadata: CredentialMetadata,
 }
 
+fn registration_for_authorization(registration: &ClientRegistration, credentials: Option<&StoredCredentials>) -> ClientRegistration {
+    let mut registration = registration.clone();
+    if let Some(credentials) = credentials {
+        registration.client_id = Some(credentials.metadata.client_id.clone());
+    }
+    registration
+}
+
+fn build_authorization_request(
+    registration: &ClientRegistration,
+    credentials: Option<&StoredCredentials>,
+    redirect_uri: &str,
+    state: &str,
+    nonce: &str,
+    challenge: &str,
+) -> Result<(ClientRegistration, Url), String> {
+    let registration = registration_for_authorization(registration, credentials);
+    let mut authorize = Url::parse("https://auth.openai.com/api/accounts/authorize").map_err(|e| e.to_string())?;
+    {
+        let mut query = authorize.query_pairs_mut();
+        query.append_pair("client_id", registration.client_id.as_deref().unwrap_or("dynamic_agent_client"));
+        query.append_pair("response_type", "code");
+        query.append_pair("redirect_uri", redirect_uri);
+        query.append_pair("scope", "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct");
+        query.append_pair("resource", RESOURCE);
+        query.append_pair("state", state);
+        query.append_pair("nonce", nonce);
+        query.append_pair("code_challenge_method", "S256");
+        query.append_pair("code_challenge", challenge);
+        query.append_pair("ext_agent_host_id", &registration.host_id);
+        if registration.client_id.is_none() { query.append_pair("agent_name_hint", "NEAR"); }
+        if let Some(credentials) = credentials { query.append_pair("id_token_hint", &credentials.id_token); }
+    }
+    Ok((registration, authorize))
+}
+
+#[cfg(test)]
+mod oauth_authorization_tests {
+    use super::*;
+
+    #[test]
+    fn returning_sign_in_uses_issued_client_id_from_saved_credentials() {
+        let registration = ClientRegistration { client_id: None, host_id: "urn:uuid:test-host".into() };
+        let credentials = StoredCredentials {
+            access_token: "access".into(),
+            refresh_token: "refresh".into(),
+            id_token: "id".into(),
+            metadata: CredentialMetadata {
+                client_id: "oaiapp_issued-client".into(),
+                subject: "subject".into(),
+                email: None,
+                scopes: vec![],
+                expires_at: 0,
+            },
+        };
+
+        let (registration, authorize) = build_authorization_request(
+            &registration, Some(&credentials), "http://127.0.0.1:12345/auth/callback", "state", "nonce", "challenge",
+        ).unwrap();
+        let query: std::collections::HashMap<String, String> = authorize.query_pairs().map(|(key, value)| (key.into_owned(), value.into_owned())).collect();
+        assert_eq!(registration.client_id.as_deref(), Some("oaiapp_issued-client"));
+        assert_eq!(query.get("client_id").map(String::as_str), Some("oaiapp_issued-client"));
+        assert_eq!(query.get("id_token_hint").map(String::as_str), Some("id"));
+        assert!(!query.contains_key("agent_name_hint"), "returning sign-in must not use the initial-registration hint");
+    }
+
+    #[test]
+    fn first_sign_in_uses_dynamic_registration_and_agent_name() {
+        let registration = ClientRegistration { client_id: None, host_id: "urn:uuid:test-host".into() };
+        let (_, authorize) = build_authorization_request(
+            &registration, None, "http://127.0.0.1:12345/auth/callback", "state", "nonce", "challenge",
+        ).unwrap();
+        let query: std::collections::HashMap<String, String> = authorize.query_pairs().map(|(key, value)| (key.into_owned(), value.into_owned())).collect();
+        assert_eq!(query.get("client_id").map(String::as_str), Some("dynamic_agent_client"));
+        assert_eq!(query.get("agent_name_hint").map(String::as_str), Some("NEAR"));
+        assert!(!query.contains_key("id_token_hint"));
+    }
+
+}
+
 #[derive(Serialize)]
 struct ChatGptStatus { connected: bool, email: Option<String>, plan_usage_enabled: bool, message: String }
 
@@ -472,7 +552,6 @@ fn chatgpt_begin_login(app: tauri::AppHandle) -> Result<String, String> {
     let registration = load_registration(&app)?;
     let old_credentials = load_credentials()?;
     let old_metadata = old_credentials.as_ref().map(|stored| stored.metadata.clone());
-    let old_id_token = old_credentials.map(|stored| stored.id_token);
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| format!("Could not start local sign-in callback: {e}"))?;
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
@@ -481,22 +560,9 @@ fn chatgpt_begin_login(app: tauri::AppHandle) -> Result<String, String> {
     let nonce = random_token();
     let verifier = random_token();
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
-    let mut authorize = Url::parse("https://auth.openai.com/api/accounts/authorize").map_err(|e| e.to_string())?;
-    {
-        let mut query = authorize.query_pairs_mut();
-        query.append_pair("client_id", registration.client_id.as_deref().unwrap_or("dynamic_agent_client"));
-        query.append_pair("response_type", "code");
-        query.append_pair("redirect_uri", &redirect_uri);
-        query.append_pair("scope", "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct");
-        query.append_pair("resource", RESOURCE);
-        query.append_pair("state", &state);
-        query.append_pair("nonce", &nonce);
-        query.append_pair("code_challenge_method", "S256");
-        query.append_pair("code_challenge", &challenge);
-        query.append_pair("ext_agent_host_id", &registration.host_id);
-        if registration.client_id.is_none() { query.append_pair("agent_name_hint", "NEAR"); }
-        if let Some(token) = old_id_token { query.append_pair("id_token_hint", &token); }
-    }
+    let (registration, authorize) = build_authorization_request(
+        &registration, old_credentials.as_ref(), &redirect_uri, &state, &nonce, &challenge,
+    )?;
     let app_handle = app.clone();
     std::thread::spawn(move || {
         if let Err(error) = complete_oauth(app_handle.clone(), listener, redirect_uri, registration, state, nonce, verifier, old_metadata.map(|m| m.subject)) {
