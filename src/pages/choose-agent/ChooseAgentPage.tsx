@@ -7,10 +7,11 @@ type ChooseAgentPageProps = {
   onAgentChange: (agent: AgentChoice) => void;
   onLater: () => void;
   onContinue: () => void;
+  error?: string;
 };
 const AGENTS: AgentChoice[] = ["ChatGPT", "Claude Code", "Local model"];
 
-export function ChooseAgentPage({ agent, onAgentChange, onLater, onContinue }: ChooseAgentPageProps) {
+export function ChooseAgentPage({ agent, onAgentChange, onLater, onContinue, error }: ChooseAgentPageProps) {
   return <OnboardingPanel icon="robot" title="Choose your AI" description="Connect to an agent to unlock the full NEAR experience.">
     <div className="flex w-full gap-[5px]" role="group" aria-label="Choose an agent">
       {AGENTS.map((choice) => {
@@ -20,6 +21,7 @@ export function ChooseAgentPage({ agent, onAgentChange, onLater, onContinue }: C
       </button>;
       })}
     </div>
+    {error && <p role="alert" className="w-full rounded-md border border-[#ff7777]/35 bg-[#ff7777]/10 px-3 py-2 text-left text-[11px] leading-relaxed text-[#ffb4b4]">{error}</p>}
     <div className="flex w-full items-center gap-2">
       <span className="flex-1" />
       <button className={`${buttonSecondary} min-w-[87px]`} onClick={onLater}>Later</button>

@@ -28,7 +28,9 @@ export function NotchFrame({ children, collapsed, previewSize, ...events }: Notc
   }, []);
 
   const { progress, shape } = notchGeometry(size.width, size.height);
-  const expandedOpacity = smoothstep((progress - 0.36) / 0.58);
+  // Let the notch finish most of its size change before revealing the page.
+  // This avoids text and controls appearing clipped while the frame is still opening.
+  const expandedOpacity = smoothstep((progress - 0.68) / 0.3);
   const collapsedOpacity = 1 - expandedOpacity;
   return <main
     ref={root}
@@ -39,7 +41,7 @@ export function NotchFrame({ children, collapsed, previewSize, ...events }: Notc
     <NotchSurface width={size.width} height={size.height} />
     <div
       className="absolute left-1/2 top-0 z-20 h-[180px] w-[680px] -translate-x-1/2 overflow-hidden rounded-b-[30px]"
-      style={{ opacity: expandedOpacity, visibility: expandedOpacity === 0 ? "hidden" : "visible" }}
+      style={{ opacity: expandedOpacity, visibility: expandedOpacity === 0 ? "hidden" : "visible", willChange: "opacity" }}
       inert={progress < 0.99}
       aria-hidden={expandedOpacity === 0}
     >{children}</div>
