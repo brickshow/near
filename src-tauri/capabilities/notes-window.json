@@ -1,0 +1,1 @@
+{"identifier":"notes-window","description":"Notes and local calendar","windows":["near-notes","near-church"],"permissions":["core:default","core:window:allow-close","core:window:allow-set-focus","core:window:allow-show","sql:default","sql:allow-execute"]}

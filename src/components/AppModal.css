@@ -1,0 +1,40 @@
+.near-app-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(390px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: 0;
+  padding: 20px;
+  transform: translate(-50%, -50%);
+  overflow: auto;
+  border: 1px solid #65dce766;
+  border-radius: 14px;
+  background: #101f2b;
+  color: #edf4f6;
+  box-shadow: 0 24px 70px #000a;
+  font-family: Inter, "Segoe UI", sans-serif;
+}
+.near-app-modal::backdrop { background: #020b12bd; }
+.near-app-modal h2 { margin: 0 0 9px; font-size: 18px; line-height: 1.3; }
+.near-app-modal p { margin: 0; color: #c6d5dc; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.near-app-modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.near-app-modal-actions button { padding: 8px 13px; border: 1px solid #7899aa55; border-radius: 8px; background: #213545; color: #edf4f6; font: inherit; font-size: 12px; cursor: pointer; }
+.near-app-modal-actions button.is-primary { border-color: #49dceb; background: #49dceb; color: #052b3a; font-weight: 600; }
+.near-app-modal-actions button.is-danger { border-color: #ff9c8f; background: #ab4d49; color: #fff; }
+.near-app-modal :focus-visible { outline: 2px solid #49dceb; outline-offset: 2px; }
+
+.near-app-modal[open],
+.note-passage-dialog[open] {
+  animation: near-modal-in 150ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes near-modal-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .near-app-modal[open],
+  .note-passage-dialog[open] { animation: none; }
+}

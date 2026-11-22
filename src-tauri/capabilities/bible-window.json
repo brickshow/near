@@ -1,0 +1,1 @@
+{"identifier":"bible-window","description":"Offline Bible reader","windows":["near-bible"],"permissions":["core:default","core:window:allow-close","core:window:allow-set-focus","core:window:allow-show","sql:default"]}

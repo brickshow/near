@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+html[data-theme="light"] #root {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+html[data-theme="light"] #root img,
+html[data-theme="light"] #root video {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+.near-collapsed-eyes-button {
+  position: absolute;
+  inset: 0 0 1px;
+  display: grid;
+  width: 100%;
+  place-items: center;
+  border: 0;
+  border-radius: 0 0 21px 21px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.near-collapsed-eyes {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.near-collapsed-eye {
+  display: grid;
+  width: 10px;
+  height: 10px;
+  place-items: center;
+  transition: transform 140ms ease;
+}
+
+.near-collapsed-pupil {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: #bceef0;
+  transition: height 180ms ease;
+  animation: near-square-blink 3.4s ease-in-out infinite;
+}
+
+.near-collapsed-eyes.is-asleep .near-collapsed-pupil {
+  height: 2px;
+  animation: none;
+}
+
+@keyframes near-square-blink {
+  0%, 70%, 76%, 100% { transform: scaleY(1); }
+  73% { transform: scaleY(0.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .near-collapsed-eye,
+  .near-collapsed-pupil { transition: none; animation: none; }
+}
+
+@theme {
+  --font-sans: Inter, "Segoe UI", Arial, sans-serif;
+  --animate-electric-outline: electric-outline 4s linear infinite;
+  --animate-voice-wave: voice-wave 700ms ease-in-out infinite alternate;
+  --animate-voice-idle: voice-idle 1.8s ease-in-out infinite alternate;
+  --animate-voice-analyze: voice-analyze 1.2s ease-in-out infinite alternate;
+  --animate-voice-speak: voice-speak 520ms ease-in-out infinite alternate;
+  --animate-voice-scan: voice-scan 1.7s ease-in-out infinite alternate;
+
+  @keyframes electric-outline {
+    to { stroke-dashoffset: -100; }
+  }
+  @keyframes voice-wave {
+    from { transform: scaleY(0.35); opacity: 0.55; }
+    to { transform: scaleY(1); opacity: 1; }
+  }
+  @keyframes voice-idle {
+    from { transform: scaleY(0.25); opacity: 0.28; }
+    to { transform: scaleY(0.55); opacity: 0.62; }
+  }
+  @keyframes voice-analyze {
+    from { transform: scaleY(0.12); opacity: 0.35; }
+    to { transform: scaleY(0.68); opacity: 0.95; }
+  }
+  @keyframes voice-speak {
+    from { transform: scaleY(0.2); opacity: 0.55; }
+    to { transform: scaleY(1); opacity: 1; }
+  }
+  @keyframes voice-scan {
+    from { transform: translateX(0); opacity: 0.2; }
+    to { transform: translateX(220px); opacity: 1; }
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+}
+
+/* Home stays inside the silhouette's 53px shoulders and 10px bottom inset. */
+.home-page {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin-inline: 0;
+  padding-inline: 20px;
+  padding-bottom: 16px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 28px;
+}
+.home-content {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 108px;
+  align-items: center;
+  min-height: 0;
+  gap: 14px;
+  padding-block: 9px;
+}
+.home-verse {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  padding: 0 4px;
+}
+.home-verse h1, .home-verse > p:last-child { flex-shrink: 0; }
+.home-verse-text {
+  min-height: 0;
+  margin: 5px 0 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+  scrollbar-color: #32515c transparent;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #edf4f6;
+}
+.home-verse-text::after {
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  margin-left: 2px;
+  background: #68dfd0;
+  content: "";
+  vertical-align: -0.12em;
+  animation: verse-caret 900ms steps(2, start) infinite;
+}
+@keyframes verse-caret { to { visibility: hidden; } }
+.home-navigation { min-height: 0; }
+.home-page button:focus-visible, .home-verse-text:focus-visible {
+  outline: 1px solid #68dfd0;
+  outline-offset: 2px;
+}
+.home-navigation nav { gap: 5px; }
+.home-navigation button { border-bottom: 0; border-radius: 5px; }
+.home-navigation button[aria-current='page'] { background: rgb(65 222 234 / 8%); }
+
+html.docked-window,html.docked-window body,html.docked-window #root{background:#08131d}
+.docked-window .bible-reader,.docked-window .docked-panel{animation:none;transform:none;box-shadow:none;opacity:1}
+.docked-window .bible-reader>*,.docked-window .docked-panel>:not(dialog){animation:dock-content-in .22s ease-out}
+.docked-window .bible-reader.closing{animation:none}
+.docked-window .bible-reader.closing>*{animation:dock-content-out .18s ease-in forwards}
+@keyframes dock-content-in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes dock-content-out{to{opacity:0;transform:translateX(12px)}}
+@media(prefers-reduced-motion:reduce){.docked-window .bible-reader>*,.docked-window .docked-panel>:not(dialog),.docked-window .bible-reader.closing>*{animation:none}}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-actions button {
+  border: 1px solid #7691ad55;
+  border-radius: 8px;
+  background: #142838;
+  color: #edf4f6;
+  cursor: pointer;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.settings-actions button:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
+.settings-window,
+.settings-window * {
+  scrollbar-width: none;
+}
+
+.settings-window::-webkit-scrollbar,
+.settings-window *::-webkit-scrollbar {
+  display: none;
+}

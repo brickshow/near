@@ -1,0 +1,58 @@
+.bible-scene {
+  position: relative;
+  width: 215px;
+  height: 105px;
+  flex: none;
+  perspective: 650px;
+}
+.bible-scene svg { display: block; width: 100%; height: 100%; }
+.bible-scene.is-compact { width: 192px; height: 94px; }
+.bible-binding, .bible-beam-rise, .bible-gutter { position: absolute; inset: 0; }
+.bible-ground {
+  position: absolute; left: 8%; right: 8%; bottom: 8%; height: 14%;
+  background: radial-gradient(ellipse, #02090de0, transparent 70%);
+  filter: blur(3px);
+}
+.bible-binding { animation: bible-binding-open 1.6s cubic-bezier(.2,.65,.2,1) both; }
+.bible-leaf, .bible-turning-page { position: absolute; top: 0; width: 50%; height: 100%; backface-visibility: hidden; }
+.bible-leaf-left { left: 0; transform-origin: right 60%; animation: bible-left-open 1.8s cubic-bezier(.2,.65,.2,1) both; }
+.bible-leaf-right { right: 0; transform-origin: left 60%; animation: bible-right-open 1.8s cubic-bezier(.2,.65,.2,1) both; }
+.bible-turning-page { right: 0; transform-origin: left 60%; pointer-events: none; animation: bible-page-turn 2.4s ease-in-out infinite; }
+.bible-turning-page-b { animation-delay: .8s; }
+.bible-turning-page-c { animation-delay: 1.6s; }
+.bible-gutter { pointer-events: none; animation: bible-reveal 1s ease 1.1s both; }
+.bible-radiance { position: absolute; inset: 3% 12% 7%; animation: bible-reveal 1.5s ease .8s both; }
+.bible-radiance-pulse {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 75%, #ffe7a72e, #68d9e818 43%, transparent 72%);
+  filter: blur(7px); opacity: .7;
+  animation: bible-light-breathe 4s ease-in-out infinite alternate;
+  transition: filter .8s ease;
+}
+.is-speaking .bible-radiance-pulse { filter: blur(5px) brightness(1.45); }
+.bible-beam-rise { transform-origin: 50% 75%; animation: bible-light-rise 2s ease-out .9s both; }
+.bible-dust { position: absolute; left: 50%; top: 65%; }
+.bible-dust i {
+  position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff0c7;
+  box-shadow: 0 0 5px #f5ebc5a8; opacity: 0;
+  animation: bible-dust-rise 4.2s ease-in-out infinite;
+}
+.bible-dust i:nth-child(1) { --drift: -28px; animation-delay: 1.4s; }
+.bible-dust i:nth-child(2) { --drift: 17px; animation-delay: 2.2s; }
+.bible-dust i:nth-child(3) { --drift: -10px; animation-delay: 3s; }
+.bible-dust i:nth-child(4) { --drift: 32px; animation-delay: 3.8s; }
+.bible-dust i:nth-child(5) { --drift: 3px; animation-delay: 4.5s; }
+.bible-splash-copy { flex: none; animation: bible-copy-in .8s ease-out .45s both; }
+@keyframes bible-binding-open { from { transform: scaleX(.18) translateY(7px); opacity: .4; } to { transform: scaleX(1) translateY(0); opacity: 1; } }
+@keyframes bible-left-open { from { transform: rotateY(82deg); } 75% { transform: rotateY(-5deg); } to { transform: rotateY(0); } }
+@keyframes bible-right-open { from { transform: rotateY(-82deg); } 75% { transform: rotateY(5deg); } to { transform: rotateY(0); } }
+@keyframes bible-page-turn { 0% { transform: rotateY(-18deg); opacity: 0; } 12% { opacity: .72; } 72% { opacity: .5; } 100% { transform: rotateY(-178deg); opacity: 0; } }
+@keyframes bible-light-rise { from { transform: scaleY(.05); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes bible-reveal { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bible-light-breathe { from { opacity: .6; } to { opacity: 1; } }
+@keyframes bible-dust-rise { 0% { transform: translate(0, 0); opacity: 0; } 22% { opacity: .8; } 100% { transform: translate(var(--drift), -66px); opacity: 0; } }
+@keyframes bible-copy-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .bible-scene *, .bible-splash-copy { animation: none !important; }
+  .bible-turning-page, .bible-dust { display: none; }
+}
