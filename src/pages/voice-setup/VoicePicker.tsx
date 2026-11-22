@@ -107,7 +107,7 @@ export function VoicePicker({ voiceName, onVoiceChange, onLater, onContinue, pre
     </div>
     {downloading && <progress className="h-1 w-full accent-[#49dceb]" value={percent} max={100} aria-label="Bryce voice download progress" />}
     <p role={error ? "alert" : "status"} className={`m-0 text-[9px] leading-tight ${error ? "text-[#ff9c8f]" : "text-[#b8c4d1]"}`}>
-      {error || (downloading ? `${progress?.stage ?? "Starting download"} - ${percent}%` : message || (!catalog ? "Connecting to NEAR..." : !catalog.supported ? "Bryce requires Windows x64." : ready ? "Downloaded to this device. Ready to use offline." : "Optional additional resource · 86 MB download · Stored in app data, not in the app build."))}
+      {error || (downloading ? `${progress?.stage ?? "Starting download"} - ${percent}%` : message || (!catalog ? "Connecting to NEAR..." : !catalog.supported ? "Bryce offline voice is not available for this device. Your system voices are still available." : ready ? "Downloaded to this device. Ready to use offline." : "Optional additional resource · 86 MB download · Stored in app data, not in the app build."))}
     </p>
   </div>;
 }

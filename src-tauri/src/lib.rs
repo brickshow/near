@@ -257,6 +257,7 @@ fn save_registration(app: &tauri::AppHandle, registration: &ClientRegistration) 
     std::fs::write(path, serde_json::to_vec(registration).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
 }
 
+#[cfg(windows)]
 fn credential_file() -> Result<std::path::PathBuf, String> {
     let roaming = std::env::var_os("APPDATA").ok_or("Windows profile folder is unavailable")?;
     let dir = std::path::PathBuf::from(roaming).join("NEAR");
@@ -298,6 +299,7 @@ fn unprotect_credentials(_: &[u8]) -> Result<Vec<u8>, String> {
     Err("The ChatGPT token store currently requires Windows DPAPI.".into())
 }
 
+#[cfg(windows)]
 fn load_credentials() -> Result<Option<StoredCredentials>, String> {
     let path = credential_file()?;
     if !path.exists() { return Ok(None); }
@@ -306,6 +308,7 @@ fn load_credentials() -> Result<Option<StoredCredentials>, String> {
     serde_json::from_slice(&clear).map(Some).map_err(|e| format!("Stored ChatGPT credentials could not be read: {e}"))
 }
 
+#[cfg(windows)]
 fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
     let path = credential_file()?;
     let clear = serde_json::to_vec(credentials).map_err(|e| e.to_string())?;
@@ -313,6 +316,34 @@ fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
     let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
     std::fs::write(&temporary, encrypted).map_err(|e| e.to_string())?;
     std::fs::rename(&temporary, &path).map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn load_credentials() -> Result<Option<StoredCredentials>, String> {
+    let entry = keyring::Entry::new("com.app.near", "chatgpt-session").map_err(|e| e.to_string())?;
+    let clear = match entry.get_password() {
+        Ok(value) => value,
+        Err(keyring::Error::NoEntry) => return Ok(None),
+        Err(error) => return Err(format!("Could not read ChatGPT credentials from macOS Keychain: {error}")),
+    };
+    serde_json::from_str(&clear).map(Some).map_err(|e| format!("Stored ChatGPT credentials could not be read: {e}"))
+}
+
+#[cfg(target_os = "macos")]
+fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
+    let entry = keyring::Entry::new("com.app.near", "chatgpt-session").map_err(|e| e.to_string())?;
+    let clear = serde_json::to_string(credentials).map_err(|e| e.to_string())?;
+    entry.set_password(&clear).map_err(|e| format!("Could not save ChatGPT credentials to macOS Keychain: {e}"))
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn load_credentials() -> Result<Option<StoredCredentials>, String> {
+    Err("Secure ChatGPT credential storage is currently supported on Windows and macOS.".into())
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn save_credentials(_: &StoredCredentials) -> Result<(), String> {
+    Err("Secure ChatGPT credential storage is currently supported on Windows and macOS.".into())
 }
 
 fn store_credentials(tokens: &OAuthTokenResponse, metadata: &CredentialMetadata) -> Result<(), String> {

@@ -6,11 +6,12 @@ import { listen } from "@tauri-apps/api/event";
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 type ChatDelta = { requestId: string; delta: string };
 const CONTEXT_TURN_LIMIT = 10;
+const supportsWindowsMediaSessions = /Windows/i.test(navigator.userAgent);
 
 const music = createMusicCommands(
   query => invoke<{ url: string; matched: boolean; title?: string | null }>("resolve_youtube_music", { query }),
   url => openUrl(url),
-  title => invoke("media_play_youtube", { title }),
+  supportsWindowsMediaSessions ? title => invoke("media_play_youtube", { title }) : undefined,
   query => invoke<boolean>("media_play_spotify", { query }),
 );
 

@@ -133,7 +133,9 @@ mod platform {
 pub async fn media_state() -> Result<Option<MediaState>, String> {
     #[cfg(windows)]
     { tauri::async_runtime::spawn_blocking(platform::state).await.map_err(|e| e.to_string())? }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    { Err("System-wide media controls are not available on macOS yet. Start and control music in Spotify or your browser.".into()) }
+    #[cfg(not(any(windows, target_os = "macos")))]
     { Err("System media controls require Windows.".into()) }
 }
 
@@ -141,7 +143,9 @@ pub async fn media_state() -> Result<Option<MediaState>, String> {
 pub async fn media_control(action: String, source: String, title: String) -> Result<(), String> {
     #[cfg(windows)]
     { tauri::async_runtime::spawn_blocking(move || platform::control(&action, &source, &title)).await.map_err(|e| e.to_string())? }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    { let _ = (action, source, title); Err("Control music from the Spotify or browser player on macOS.".into()) }
+    #[cfg(not(any(windows, target_os = "macos")))]
     { let _ = (action, source, title); Err("System media controls require Windows.".into()) }
 }
 
@@ -158,7 +162,7 @@ pub async fn media_play_youtube(title: String) -> Result<(), String> {
     #[cfg(windows)]
     { tauri::async_runtime::spawn_blocking(move || platform::play_youtube(&title)).await.map_err(|e| e.to_string())? }
     #[cfg(not(windows))]
-    { let _ = title; Err("YouTube playback control requires Windows.".into()) }
+    { let _ = title; Err("Start playback from the YouTube browser player on this device.".into()) }
 }
 
 #[cfg(all(test, windows))]

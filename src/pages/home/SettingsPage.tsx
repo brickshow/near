@@ -159,7 +159,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     </section>
     <section className="settings-section" aria-labelledby="startup-settings-title">
       <h2 id="startup-settings-title">Startup</h2>
-      <label className="settings-switch-row"><span>Start NEAR when I sign in to Windows</span>
+      <label className="settings-switch-row"><span>Start NEAR when I sign in</span>
         <input type="checkbox" checked={startAtLogin} disabled={!isTauri()} onChange={async event => {
           const enabled = event.target.checked;
           setStartupError("");
@@ -218,7 +218,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
           saveNoteMicrophone(event.target.value);
           setNoteMicrophone(event.target.value);
         }}>
-          <option value="">Windows default microphone</option>
+          <option value="">System default microphone</option>
           {noteMicrophone && !microphones.some(device => device.deviceId === noteMicrophone) && <option value={noteMicrophone}>Previously selected microphone (unavailable)</option>}
           {microphones.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Microphone ${index + 1}`}</option>)}
         </select>

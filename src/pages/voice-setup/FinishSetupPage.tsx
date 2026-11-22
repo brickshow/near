@@ -16,8 +16,8 @@ export function FinishSetupPage({ onBack, onFinish }: FinishSetupPageProps) {
         <label className="flex items-center gap-1.5"><span aria-hidden="true">☾</span> Quiet hours
           <Toggle checked={quietHours} onChange={() => setQuietHours((value) => !value)} label="Quiet hours" />
         </label>
-        <label className="flex items-center gap-1.5"><span aria-hidden="true">⊞</span> Start with Windows
-          <Toggle checked={launchOnStart} onChange={() => setLaunchOnStart((value) => !value)} label="Start with Windows" />
+        <label className="flex items-center gap-1.5"><span aria-hidden="true">⊞</span> Start NEAR when I sign in
+          <Toggle checked={launchOnStart} onChange={() => setLaunchOnStart((value) => !value)} label="Start NEAR when I sign in" />
         </label>
       </div>
       <div className="flex items-center justify-end gap-2">
