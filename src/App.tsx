@@ -30,7 +30,6 @@ import { HomePage } from "./pages/home/HomePage";
 import { SettingsWindow } from "./pages/home/SettingsWindow";
 import { loadReminderPreferences } from "./lib/reminderPreferences";
 import type { HomeSection } from "./components/HomeNavigation";
-import { BasicModePage } from "./pages/home/BasicModePage";
 import { DailyVersePage } from "./pages/home/DailyVersePage";
 import { ReminderPreviewPage } from "./pages/home/ReminderPreviewPage";
 import { QuietModePage } from "./pages/home/QuietModePage";
@@ -90,8 +89,7 @@ type Page =
   | "agent-unavailable"
   | "sign-in-expired"
   | "usage-limit"
-  | "request-stopped"
-  | "explore";
+  | "request-stopped";
 type VoiceSetupFlow = { next: "local-data" | "finish-setup" };
 type ChatGptStatus = { connected: boolean; email: string | null; plan_usage_enabled: boolean; message: string };
 const SETUP_COMPLETE_KEY = "near.setup.complete";
@@ -194,6 +192,7 @@ function App() {
   const handleAgentChange = useCallback((nextAgent: AgentChoice) => {
     localStorage.setItem(AGENT_CHOICE_KEY, nextAgent);
     setAgent(nextAgent);
+    setChatGptSignInMessage("");
   }, []);
   const completeSetup = useCallback(() => {
     localStorage.setItem(SETUP_COMPLETE_KEY, "true");
@@ -201,16 +200,18 @@ function App() {
   }, []);
   const startChatGptSignIn = useCallback(async () => {
     setChatGptSignInBusy(true);
+    setChatGptSignInMessage("");
     setChatGptSignInMessage("Opening ChatGPT sign-in…");
     try {
       const url = await invoke<string>("chatgpt_begin_login");
       await openUrl(url);
       setChatGptSignInMessage("Finish signing in in your browser. NEAR will continue automatically.");
     } catch (error) {
-      setChatGptSignInMessage(String(error));
+      setChatGptSignInMessage(`Could not connect to ${agent}: ${String(error)}`);
       setChatGptSignInBusy(false);
+      setPage("choose-agent");
     }
-  }, []);
+  }, [agent]);
   const handleVoiceChange = useCallback((voiceName: string) => {
     localStorage.setItem(NEAR_VOICE_KEY, voiceName);
     setNearVoice(voiceName);
@@ -238,7 +239,7 @@ function App() {
 
   useEffect(() => {
     if (isChatWindow || ![
-      "home", "explore", "daily-verse", "quiet-mode", "reminder-preview",
+      "home", "daily-verse", "quiet-mode", "reminder-preview",
       "voice-settings", "type-message", "conversation-history",
     ].includes(page)) return;
     let active = true;
@@ -333,13 +334,22 @@ function App() {
           void getCurrentWindow().setFocusable(true).then(() => getCurrentWindow().setFocus()).catch(() => {});
         } else {
           setChatGptSignInMessage(status.message || "ChatGPT connection was not completed.");
+          setPage("choose-agent");
         }
       } catch (error) {
-        if (!disposed) { setChatGptSignInBusy(false); setChatGptSignInMessage(String(error)); }
+        if (!disposed) {
+          setChatGptSignInBusy(false);
+          setChatGptSignInMessage(`Could not verify the ChatGPT connection: ${String(error)}`);
+          setPage("choose-agent");
+        }
       }
     }).then((stop) => { if (disposed) stop(); else unlisten.push(stop); }).catch(() => {});
     void listen<string>("near://chatgpt-auth-error", ({ payload }) => {
-      if (!disposed) { setChatGptSignInBusy(false); setChatGptSignInMessage(payload); }
+      if (!disposed) {
+        setChatGptSignInBusy(false);
+        setChatGptSignInMessage(`ChatGPT connection failed: ${payload}`);
+        setPage("choose-agent");
+      }
     }).then((stop) => { if (disposed) stop(); else unlisten.push(stop); }).catch(() => {});
     return () => { disposed = true; unlisten.forEach((stop) => stop()); };
   }, []);
@@ -399,7 +409,7 @@ function App() {
         return (
           <WelcomePage
             onGetStarted={startVoiceSetup}
-            onExplore={() => navigate("explore")}
+            onExplore={() => navigate("home")}
           />
         );
       case "local-data":
@@ -414,8 +424,9 @@ function App() {
           <ChooseAgentPage
             agent={agent}
             onAgentChange={handleAgentChange}
-            onLater={() => navigate("explore")}
+            onLater={() => { setChatGptSignInMessage(""); navigate("home"); }}
             onContinue={() => navigate("agent-found")}
+            error={chatGptSignInMessage}
           />
         );
       case "agent-found":
@@ -433,7 +444,7 @@ function App() {
           <AgentMissingPage
             onOpenGuide={() => navigate("setup-guide")}
             onCheckAgain={() => navigate("agent-found")}
-            onBasicMode={() => navigate("explore")}
+            onBasicMode={() => navigate("home")}
           />
         );
       case "setup-guide":
@@ -446,7 +457,7 @@ function App() {
       case "testing-connection":
         return (
           <TestingConnectionPage
-            onCancel={() => navigate("agent-found")}
+            onCancel={() => navigate("choose-agent")}
             onReady={handleConnectionReady}
           />
         );
@@ -626,7 +637,7 @@ function App() {
         return (
           <SignInExpiredPage
             onReconnect={() => void startChatGptSignIn()}
-            onBasicMode={() => navigate("explore")}
+            onBasicMode={() => navigate("home")}
             onHome={() => navigate("home")}
           />
         );
@@ -644,14 +655,6 @@ function App() {
             onUndo={() => navigate("home")}
             onDone={() => navigate("home")}
             onHome={() => navigate("home")}
-          />
-        );
-      case "explore":
-        return (
-          <BasicModePage
-            onConnect={() => navigate("choose-agent")}
-            onVerse={() => navigate("daily-verse")}
-            onReminders={() => navigate("reminder-preview")}
           />
         );
     }
@@ -751,9 +754,7 @@ function App() {
                                     ? "Bible setup"
                                     : page === "finish-setup"
                                       ? "Setup preferences"
-                                      : page === "explore"
-                                        ? "Not connected"
-                                        : "No agent connected"
+                                      : "No agent connected"
             }
             tone={
               reminderVisible
