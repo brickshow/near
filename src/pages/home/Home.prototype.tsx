@@ -48,7 +48,7 @@ export default function HomePrototype() {
     <NotchFrame previewSize={{ width: 680, height: 180 }} collapsed={null} onPointerEnter={() => {}} onPointerLeave={() => {}} onPointerDown={() => {}}>
       <NotchHeader status="ChatGPT connected" tone="success" onCollapse={() => setAction("Collapse")} onSettings={() => setAction("Settings")} onMicrophone={() => setAction("Microphone")} />
       <div style={{ height: "calc(100% - 30px)" }}>
-        {variant === "A" ? <HomePage key={variant} agent="ChatGPT" onTalk={() => setAction("Talk to NEAR")} onType={() => setAction("Chat with NEAR")} onReviewChange={() => setAction("Bible")} onNotes={() => setAction("Notes")} onChurch={() => setAction("Church Calendar")} /> :
+        {variant === "A" ? <HomePage key={variant} agent="ChatGPT" onTalk={() => setAction("Talk to NEAR")} onType={() => setAction("Chat with NEAR")} onFaithJourney={() => setAction("Faith Journey")} onReviewChange={() => setAction("Bible")} onNotes={() => setAction("Notes")} onChurch={() => setAction("Church Calendar")} /> :
           <section className="home-page">
             {variant === "B" ? <VariantB verse={verse} act={setAction} /> : <VariantC verse={verse} act={setAction} />}
             <div className="home-navigation"><HomeNavigation active={tab} onNavigate={next => { setTab(next); setAction(next); }} /></div>

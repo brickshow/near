@@ -35,6 +35,19 @@ export function ChurchCalendarWindow() {
     void listen("near://calendar-changed", refresh).then(dispose => { if (!active) dispose(); else stop = dispose; }).catch(cause => { if (active) setError(String(cause)); });
     return () => { active = false; stop?.(); };
   }, []);
+  useEffect(() => {
+    let active=true;let stop:(()=>void)|undefined;
+    const apply=(payload:{title:string;starts:string;location:string;notes:string;reminder:number})=>{
+      if(!active||!payload.title||!Number.isFinite(Date.parse(payload.starts)))return;
+      setDraft({title:payload.title.slice(0,160),starts:localDateTime(payload.starts),location:payload.location.slice(0,240),notes:payload.notes.slice(0,10000),reminder:[0,5,15,30,60].includes(payload.reminder)?payload.reminder:15});
+      localStorage.removeItem("near.calendar.prefill");
+    };
+    try{const pending=localStorage.getItem("near.calendar.prefill");if(pending)apply(JSON.parse(pending))}catch{localStorage.removeItem("near.calendar.prefill")}
+    const storage=(event:StorageEvent)=>{if(event.key==="near.calendar.prefill"&&event.newValue){try{apply(JSON.parse(event.newValue))}catch{}}};
+    window.addEventListener("storage",storage);
+    void listen<{title:string;starts:string;location:string;notes:string;reminder:number}>("near://calendar-prefill",({payload})=>apply(payload)).then(unlisten=>{if(active)stop=unlisten;else unlisten()});
+    return()=>{active=false;stop?.();window.removeEventListener("storage",storage)};
+  },[]);
   const matchingEvents = events.filter(event => (all || dateKey(new Date(event.starts_at)) === selected) && `${event.title} ${event.location} ${event.notes}`.toLowerCase().includes(search.toLowerCase()));
   const visible = !all && !showAllSelectedDay ? matchingEvents.slice(0, 3) : matchingEvents;
   const counts = new Map<string, number>();

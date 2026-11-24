@@ -1,1 +1,22 @@
-{"identifier":"bible-window","description":"Offline Bible reader","windows":["near-bible"],"permissions":["core:default","core:window:allow-close","core:window:allow-set-focus","core:window:allow-show","sql:default"]}
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "bible-window",
+  "description": "Offline Bible reader",
+  "windows": ["near-bible"],
+  "permissions": [
+    "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
+    "core:window:allow-current-monitor",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-set-decorations",
+    "core:window:allow-set-shadow",
+    "core:window:allow-set-resizable",
+    "core:window:allow-set-always-on-top",
+    "sql:default"
+  ]
+}

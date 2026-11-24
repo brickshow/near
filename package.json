@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "test:faith": "node --test scripts/faith-journey.test.mjs",
     "setup:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-windows-build.ps1",
     "dev": "vite",
     "prototype:home": "vite --open /?variant=A",
