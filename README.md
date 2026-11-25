@@ -18,6 +18,37 @@ It does not change the system PATH. Python and these tools are build dependencie
 users of the compiled app do not need them. Do not set
 `WHISPER_DONT_GENERATE_BINDINGS`: the bundled bindings are not suitable for Windows.
 
+## Linux development and builds
+
+On Ubuntu 24.04, install Tauri's native libraries plus the CMake and Clang tools
+used to compile the local Whisper engine:
+
+```sh
+sudo apt update
+sudo apt install build-essential curl wget file libssl-dev libwebkit2gtk-4.1-dev \
+  libxdo-dev libayatana-appindicator3-dev librsvg2-dev libclang-dev cmake
+```
+
+Install Node.js and Rust with rustup, then install the locked JavaScript packages
+before starting the desktop app:
+
+```sh
+npm ci
+npm run tauri dev
+```
+
+Create a Debian package on Linux with:
+
+```sh
+npm run tauri -- build --bundles deb
+```
+
+Build the package on the Linux distribution you intend to support. Native
+WebKitGTK and system libraries are linked into the app. The global
+`Ctrl+Shift+Space` shortcut is registered on X11; native Wayland sessions use
+the tray icon to restore the NEAR window because global shortcut registration
+is not available there.
+
 ## macOS development and builds
 
 NEAR supports macOS on Apple Silicon and Intel. Install Xcode Command Line Tools,
