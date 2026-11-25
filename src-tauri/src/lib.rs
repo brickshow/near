@@ -42,10 +42,10 @@ static NOTCH_AUTO_HIDE_CONFIGURED: AtomicBool = AtomicBool::new(false);
 #[serde(rename_all = "camelCase")]
 struct NotchCursorMove { x: f64, y: f64 }
 
-fn hide_webview_context_menu(window: &tauri::WebviewWindow) {
+fn hide_webview_context_menu(_window: &tauri::WebviewWindow) {
     #[cfg(windows)]
     {
-        let _ = window.with_webview(|webview| unsafe {
+        let _ = _window.with_webview(|webview| unsafe {
             if let Ok(core) = webview.controller().CoreWebView2() {
                 if let Ok(settings) = core.Settings() {
                     let _ = settings.SetAreDefaultContextMenusEnabled(false);
@@ -357,11 +357,6 @@ fn protect_credentials(clear: &[u8]) -> Result<Vec<u8>, String> {
     Ok(encrypted)
 }
 
-#[cfg(not(windows))]
-fn protect_credentials(_: &[u8]) -> Result<Vec<u8>, String> {
-    Err("The ChatGPT token store currently requires Windows DPAPI.".into())
-}
-
 #[cfg(windows)]
 fn unprotect_credentials(encrypted: &[u8]) -> Result<Vec<u8>, String> {
     use windows::Win32::Security::Cryptography::{CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB};
@@ -372,11 +367,6 @@ fn unprotect_credentials(encrypted: &[u8]) -> Result<Vec<u8>, String> {
     let clear = unsafe { std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec() };
     unsafe { windows::Win32::Foundation::LocalFree(Some(windows::Win32::Foundation::HLOCAL(output.pbData as *mut std::ffi::c_void))); }
     Ok(clear)
-}
-
-#[cfg(not(windows))]
-fn unprotect_credentials(_: &[u8]) -> Result<Vec<u8>, String> {
-    Err("The ChatGPT token store currently requires Windows DPAPI.".into())
 }
 
 #[cfg(windows)]
