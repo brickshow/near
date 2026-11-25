@@ -43,10 +43,11 @@ npm run tauri -- build --bundles deb
 ```
 
 Build the package on the Linux distribution you intend to support. Native
-WebKitGTK and system libraries are linked into the app. The global
-`Ctrl+Shift+Space` shortcut is registered on X11; native Wayland sessions use
-the tray icon to restore the NEAR window because global shortcut registration
-is not available there.
+WebKitGTK and system libraries are linked into the app. When started in a
+Wayland session with XWayland available, NEAR selects its X11 backend so it can
+place the notch at the top center and register `Ctrl+Shift+Space`. If XWayland
+is unavailable, the desktop compositor controls window placement and the tray
+icon remains the restore path.
 
 ## macOS development and builds
 
