@@ -892,21 +892,26 @@ pub fn run() {
             _ => PermissionResponse::Default,
         })
         .setup(|app| {
-            app.handle().plugin(
-                tauri_plugin_global_shortcut::Builder::new()
-                    .with_shortcuts(["ctrl+shift+space"])?
-                    .with_handler(|app, shortcut, event| {
-                        if event.state == ShortcutState::Pressed
-                            && shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::Space)
-                        {
-                            if let Some(window) = app.get_webview_window("main") {
-                                restart_notch_idle_watch(window);
-                            }
-                            let _ = app.emit("near://toggle-notch", ());
+            let global_shortcut = tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state == ShortcutState::Pressed
+                        && shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::Space)
+                    {
+                        if let Some(window) = app.get_webview_window("main") {
+                            restart_notch_idle_watch(window);
                         }
-                    })
-                    .build(),
-            )?;
+                        let _ = app.emit("near://toggle-notch", ());
+                    }
+                });
+            // Global-hotkey cannot register shortcuts on native Wayland
+            // sessions. Keep the plugin available, but let the tray icon be
+            // the restore path instead of failing application setup.
+            let global_shortcut = if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+                global_shortcut
+            } else {
+                global_shortcut.with_shortcuts(["ctrl+shift+space"])?
+            };
+            app.handle().plugin(global_shortcut.build())?;
             let tray_icon = tauri::image::Image::new_owned(
                 include_bytes!("../icons/128x128.rgba").to_vec(),
                 128,
