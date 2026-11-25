@@ -21,16 +21,15 @@ users of the compiled app do not need them. Do not set
 ## Linux development and builds
 
 On Ubuntu 24.04, install Tauri's native libraries plus the CMake and Clang tools
-used to compile the local Whisper engine:
+used to compile the local Whisper engine. This helper also installs Rust through
+rustup if it is missing; `sudo` may prompt for your password:
 
 ```sh
-sudo apt update
-sudo apt install build-essential curl wget file libssl-dev libwebkit2gtk-4.1-dev \
-  libxdo-dev libayatana-appindicator3-dev librsvg2-dev libclang-dev cmake
+npm run setup:linux
 ```
 
-Install Node.js and Rust with rustup, then install the locked JavaScript packages
-before starting the desktop app:
+Install Node.js, then install the locked JavaScript packages before starting the
+desktop app:
 
 ```sh
 npm ci
