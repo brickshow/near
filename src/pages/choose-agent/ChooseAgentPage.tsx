@@ -12,7 +12,7 @@ type ChooseAgentPageProps = {
 const AGENTS: AgentChoice[] = ["ChatGPT", "Claude Code", "Local model"];
 
 export function ChooseAgentPage({ agent, onAgentChange, onLater, onContinue, error }: ChooseAgentPageProps) {
-  return <OnboardingPanel icon="robot" title="Choose your AI" description="Connect to an agent to unlock the full NEAR experience.">
+  return <OnboardingPanel icon="robot" title="Choose your AI" description="Sign in with your own ChatGPT account. Using its plan in NEAR requires an eligible plan.">
     <div className="flex w-full gap-[5px]" role="group" aria-label="Choose an agent">
       {AGENTS.map((choice) => {
         const available = choice === "ChatGPT";

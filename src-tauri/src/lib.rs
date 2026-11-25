@@ -257,6 +257,22 @@ mod oauth_authorization_tests {
     use super::*;
 
     #[test]
+    fn token_exchange_error_reports_only_the_provider_code() {
+        let body = serde_json::json!({
+            "error": "invalid_grant",
+            "error_description": "Sensitive provider detail must not be displayed",
+        });
+        let message = token_exchange_failure(
+            "ChatGPT token exchange failed",
+            reqwest::StatusCode::BAD_REQUEST,
+            Some(&body),
+        );
+
+        assert_eq!(message, "ChatGPT token exchange failed (400 Bad Request; invalid_grant).");
+        assert!(!message.contains("Sensitive provider detail"));
+    }
+
+    #[test]
     fn returning_sign_in_uses_issued_client_id_from_saved_credentials() {
         let registration = ClientRegistration { client_id: None, host_id: "urn:uuid:test-host".into() };
         let credentials = StoredCredentials {
@@ -478,6 +494,17 @@ fn oauth_http() -> Result<Client, String> {
     OAUTH_HTTP.get_or_init(|| Client::builder().timeout(Duration::from_secs(45)).build().map_err(|e| e.to_string())).clone()
 }
 
+fn token_exchange_failure(action: &str, status: reqwest::StatusCode, body: Option<&serde_json::Value>) -> String {
+    let code = body
+        .and_then(|value| value.get("error"))
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty() && value.len() <= 64 && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')));
+    match code {
+        Some(code) => format!("{action} ({status}; {code})."),
+        None => format!("{action} ({status})."),
+    }
+}
+
 fn refresh_credentials() -> Result<(CredentialMetadata, String), String> {
     let _guard = TOKEN_LOCK.lock().map_err(|e| e.to_string())?;
     let mut stored = load_credentials()?.ok_or("Connect ChatGPT first.")?;
@@ -497,7 +524,9 @@ fn refresh_credentials() -> Result<(CredentialMetadata, String), String> {
         ("resource", RESOURCE),
     ]).send().map_err(|e| format!("Could not refresh ChatGPT sign-in: {e}"))?;
     if !response.status().is_success() {
-        return Err(format!("ChatGPT sign-in needs renewal ({}). Please reconnect.", response.status()));
+        let status = response.status();
+        let body = response.json::<serde_json::Value>().ok();
+        return Err(token_exchange_failure("ChatGPT sign-in needs renewal", status, body.as_ref()));
     }
     let refreshed: OAuthTokenResponse = response.json().map_err(|e| format!("Invalid token refresh response: {e}"))?;
     access_token = refreshed.access_token.clone();
@@ -570,7 +599,11 @@ fn complete_oauth(app: tauri::AppHandle, listener: TcpListener, redirect_uri: St
         ("redirect_uri", redirect_uri.as_str()),
         ("resource", RESOURCE),
     ]).send().map_err(|e| format!("Could not complete ChatGPT sign-in: {e}"))?;
-    if !response.status().is_success() { return Err(format!("ChatGPT token exchange failed ({}).", response.status())); }
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.json::<serde_json::Value>().ok();
+        return Err(token_exchange_failure("ChatGPT token exchange failed", status, body.as_ref()));
+    }
     let tokens: OAuthTokenResponse = response.json().map_err(|e| format!("Invalid ChatGPT token response: {e}"))?;
     let claims = validate_id_token(tokens.id_token.as_deref().ok_or("ChatGPT did not return an ID token")?, &client_id, &nonce)?;
     if old_subject.as_ref().is_some_and(|subject| subject != &claims.sub) { return Err("You signed into a different ChatGPT account. Sign out of the current NEAR account first.".into()); }
