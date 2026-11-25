@@ -695,6 +695,12 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+fn get_main_monitor(app: tauri::AppHandle) -> Result<Option<tauri::Monitor>, String> {
+    let window = app.get_webview_window("main").ok_or("Main window is unavailable")?;
+    window.current_monitor().map_err(|error| error.to_string())
+}
+
 // Move and resize in one Windows operation so a resize never paints at the
 // previous frame's horizontal position. Coordinates are physical, including DPI.
 #[tauri::command]
@@ -974,7 +980,7 @@ pub fn run() {
                 .add_migrations("sqlite:near.db", migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible])
+        .invoke_handler(tauri::generate_handler![media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, event| {

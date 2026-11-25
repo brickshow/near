@@ -1,13 +1,17 @@
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { primaryMonitor, LogicalPosition, LogicalSize } from "@tauri-apps/api/window";
 import { getAllWebviewWindows, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
+type MonitorInfo = {
+  scaleFactor: number;
+  workArea: { position: { x: number; y: number }; size: { width: number; height: number } };
+};
+
 export async function openDockedWindow(kind: "bible" | "notes" | "church" | "settings" | "faith", onWindowError?: (message: string) => void, query = ""): Promise<boolean> {
   if (!isTauri()) { const width = 460; const height = kind === "faith" ? Math.min(screen.availHeight, 1536) : 800; window.open(`/?window=${kind}${query}`, "near-panel", `popup,width=${width},height=${height}`); return false; }
-  // Use the same anchor for every panel. currentMonitor() depends on which
-  // webview opened the panel, so launching from Faith Journey could place
-  // Bible/Notes/Church on a different display than launching from the main UI.
-  const monitor = await primaryMonitor();
+  // Anchor panels to the display containing NEAR's main notch. The primary
+  // display may differ, and currentMonitor() changes with the calling panel.
+  const monitor = await invoke<MonitorInfo | null>("get_main_monitor").catch(() => primaryMonitor());
   const scale = monitor?.scaleFactor ?? 1;
   const area = monitor?.workArea;
   const preferredWidth = 460;
