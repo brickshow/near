@@ -896,7 +896,9 @@ pub fn run() {
             // Global-hotkey cannot register shortcuts on native Wayland
             // sessions. Keep the plugin available, but let the tray icon be
             // the restore path instead of failing application setup.
-            let global_shortcut = if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+            let uses_x11_backend = std::env::var("GDK_BACKEND")
+                .is_ok_and(|backend| backend.split(',').next() == Some("x11"));
+            let global_shortcut = if std::env::var_os("WAYLAND_DISPLAY").is_some() && !uses_x11_backend {
                 global_shortcut
             } else {
                 global_shortcut.with_shortcuts(["ctrl+shift+space"])?
