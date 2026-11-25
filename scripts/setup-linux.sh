@@ -14,6 +14,7 @@ sudo apt-get install -y \
   file \
   libayatana-appindicator3-dev \
   libclang-dev \
+  libdbus-1-dev \
   libssl-dev \
   librsvg2-dev \
   libwebkit2gtk-4.1-dev \

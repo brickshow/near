@@ -406,14 +406,63 @@ fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
     entry.set_password(&clear).map_err(|e| format!("Could not save ChatGPT credentials to macOS Keychain: {e}"))
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(target_os = "linux")]
 fn load_credentials() -> Result<Option<StoredCredentials>, String> {
-    Err("Secure ChatGPT credential storage is currently supported on Windows and macOS.".into())
+    let entry = keyring::Entry::new("com.app.near", "chatgpt-session")
+        .map_err(|error| format!("Could not open the Linux Secret Service keyring: {error}"))?;
+    let clear = match entry.get_password() {
+        Ok(value) => value,
+        Err(keyring::Error::NoEntry) => return Ok(None),
+        Err(error) => return Err(format!("Could not read ChatGPT credentials from the Linux Secret Service keyring: {error}")),
+    };
+    serde_json::from_str(&clear).map(Some).map_err(|error| format!("Stored ChatGPT credentials could not be read: {error}"))
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(target_os = "linux")]
+fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
+    let entry = keyring::Entry::new("com.app.near", "chatgpt-session")
+        .map_err(|error| format!("Could not open the Linux Secret Service keyring: {error}"))?;
+    let clear = serde_json::to_string(credentials).map_err(|error| error.to_string())?;
+    entry.set_password(&clear).map_err(|error| format!("Could not save ChatGPT credentials to the Linux Secret Service keyring: {error}"))
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+fn load_credentials() -> Result<Option<StoredCredentials>, String> {
+    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn save_credentials(_: &StoredCredentials) -> Result<(), String> {
-    Err("Secure ChatGPT credential storage is currently supported on Windows and macOS.".into())
+    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod linux_credential_storage_tests {
+    use super::load_credentials;
+
+    #[test]
+    fn chatgpt_sign_in_is_not_blocked_by_the_unsupported_platform_guard() {
+        let result = load_credentials();
+        assert!(
+            !matches!(&result, Err(error) if error.contains("currently supported on Windows and macOS")),
+            "Linux ChatGPT credential flow still returns the unsupported-platform error"
+        );
+    }
+
+    #[test]
+    fn secret_service_can_round_trip_a_test_credential() {
+        if std::env::var_os("NEAR_TEST_SECRET_SERVICE").is_none() {
+            return;
+        }
+        let account = format!("credential-round-trip-{}", std::process::id());
+        let entry = keyring::Entry::new("com.app.near.test", &account)
+            .expect("open isolated Linux Secret Service test entry");
+        entry.set_password("near-secret-service-round-trip")
+            .expect("store synthetic test credential");
+        let stored = entry.get_password().expect("read synthetic test credential");
+        assert_eq!(stored, "near-secret-service-round-trip");
+        entry.delete_credential().expect("remove synthetic test credential");
+    }
 }
 
 fn store_credentials(tokens: &OAuthTokenResponse, metadata: &CredentialMetadata) -> Result<(), String> {
