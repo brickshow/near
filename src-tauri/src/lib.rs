@@ -404,6 +404,15 @@ fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
     std::fs::rename(&temporary, &path).map_err(|e| e.to_string())
 }
 
+#[cfg(windows)]
+fn delete_credentials() -> Result<(), String> {
+    match std::fs::remove_file(credential_file()?) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("Could not remove ChatGPT credentials: {error}")),
+    }
+}
+
 #[cfg(target_os = "macos")]
 fn load_credentials() -> Result<Option<StoredCredentials>, String> {
     let entry = keyring::Entry::new("com.app.near", "chatgpt-session").map_err(|e| e.to_string())?;
@@ -420,6 +429,15 @@ fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
     let entry = keyring::Entry::new("com.app.near", "chatgpt-session").map_err(|e| e.to_string())?;
     let clear = serde_json::to_string(credentials).map_err(|e| e.to_string())?;
     entry.set_password(&clear).map_err(|e| format!("Could not save ChatGPT credentials to macOS Keychain: {e}"))
+}
+
+#[cfg(target_os = "macos")]
+fn delete_credentials() -> Result<(), String> {
+    let entry = keyring::Entry::new("com.app.near", "chatgpt-session").map_err(|e| e.to_string())?;
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(error) => Err(format!("Could not remove ChatGPT credentials from macOS Keychain: {error}")),
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -442,6 +460,16 @@ fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
     entry.set_password(&clear).map_err(|error| format!("Could not save ChatGPT credentials to the Linux Secret Service keyring: {error}"))
 }
 
+#[cfg(target_os = "linux")]
+fn delete_credentials() -> Result<(), String> {
+    let entry = keyring::Entry::new("com.app.near", "chatgpt-session")
+        .map_err(|error| format!("Could not open the Linux Secret Service keyring: {error}"))?;
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(error) => Err(format!("Could not remove ChatGPT credentials from the Linux Secret Service keyring: {error}")),
+    }
+}
+
 #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn load_credentials() -> Result<Option<StoredCredentials>, String> {
     Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
@@ -449,6 +477,11 @@ fn load_credentials() -> Result<Option<StoredCredentials>, String> {
 
 #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn save_credentials(_: &StoredCredentials) -> Result<(), String> {
+    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+fn delete_credentials() -> Result<(), String> {
     Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
 }
 
@@ -652,10 +685,20 @@ async fn chatgpt_status() -> ChatGptStatus {
         Ok::<_, String>(Some(metadata))
     }).await {
         Ok(Ok(Some(metadata))) => ChatGptStatus { connected: true, email: metadata.email, plan_usage_enabled: true, message: "ChatGPT connected".into() },
-        Ok(Ok(None)) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: "Sign in with ChatGPT to connect NEAR.".into() },
+        Ok(Ok(None)) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: "No AI account connected. Local features are ready; connect your own ChatGPT account to use AI assistance.".into() },
         Ok(Err(error)) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: error },
         Err(error) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: error.to_string() },
     }
+}
+
+#[tauri::command]
+async fn chatgpt_disconnect() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let _guard = TOKEN_LOCK.lock().map_err(|error| error.to_string())?;
+        delete_credentials()?;
+        *CHAT_MODEL_CACHE.lock().map_err(|error| error.to_string())? = None;
+        Ok::<(), String>(())
+    }).await.map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -1062,7 +1105,7 @@ pub fn run() {
                 .add_migrations("sqlite:near.db", migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible])
+        .invoke_handler(tauri::generate_handler![media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, chatgpt_disconnect, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, event| {

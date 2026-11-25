@@ -89,19 +89,50 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
       setConnecting(false);
     }
   };
+  const disconnectChatGpt = async () => {
+    setConnecting(true);
+    setConnectionError("");
+    try {
+      await invoke("chatgpt_disconnect");
+      await refreshConnection();
+    } catch (error) {
+      setConnectionError(`Could not disconnect ChatGPT: ${String(error)}`);
+    } finally {
+      setConnecting(false);
+    }
+  };
+  const switchChatGpt = async () => {
+    setConnecting(true);
+    setConnectionError("");
+    try {
+      await invoke("chatgpt_disconnect");
+      await refreshConnection();
+      const url = await invoke<string>("chatgpt_begin_login");
+      await openUrl(url);
+    } catch (error) {
+      setConnectionError(`Could not switch ChatGPT account: ${String(error)}`);
+    } finally {
+      setConnecting(false);
+    }
+  };
   return <main className="notes-window settings-window">
     <header className="notes-header settings-header">
       <div><h1>Settings</h1><p>Make NEAR comfortable for you.</p></div>
       <button className="settings-close" aria-label="Close settings" onClick={() => void getCurrentWindow().close()}>&times;</button>
     </header>
     <section className="settings-section" aria-labelledby="connection-settings-title">
-      <h2 id="connection-settings-title">ChatGPT connection</h2>
+      <h2 id="connection-settings-title">AI provider</h2>
+      <p>ChatGPT is currently supported. Connect your own account through OpenAI sign-in; NEAR keeps its credentials in this operating system account’s secure storage. NEAR’s local features remain available when disconnected.</p>
       <p className={`settings-connection-status ${connection?.connected ? "is-connected" : ""}`} role="status">{connection?.message ?? "Checking connection..."}</p>
       {connection?.email && <p className="settings-detail"><span>Account</span><strong>{connection.email}</strong></p>}
       {connection?.connected && <p className="settings-detail"><span>Plan usage</span><strong>{connection.plan_usage_enabled ? "Enabled" : "Not enabled"}</strong></p>}
       {connectionError && <p className="notes-error" role="alert">{connectionError}</p>}
       <div className="settings-actions">
         {!connection?.connected && <button className="settings-primary-action" disabled={connecting} onClick={() => void connectChatGpt()}>{connecting ? "Opening sign-in..." : "Connect ChatGPT"}</button>}
+        {connection?.connected && <>
+          <button className="settings-primary-action" disabled={connecting} onClick={() => void switchChatGpt()}>{connecting ? "Opening sign-in..." : "Switch account"}</button>
+          <button className="settings-danger-action" disabled={connecting} onClick={() => void disconnectChatGpt()}>{connecting ? "Please wait..." : "Disconnect"}</button>
+        </>}
         <button className="settings-secondary-action" onClick={() => void refreshConnection()}>Refresh status</button>
       </div>
     </section>
