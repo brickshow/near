@@ -1,1 +1,23 @@
-{"identifier":"notes-window","description":"Notes and local calendar","windows":["near-notes","near-church"],"permissions":["core:default","core:window:allow-close","core:window:allow-set-focus","core:window:allow-show","sql:default","sql:allow-execute"]}
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "notes-window",
+  "description": "Notes and local calendar",
+  "windows": ["near-notes", "near-church"],
+  "permissions": [
+    "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
+    "core:window:allow-current-monitor",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-set-decorations",
+    "core:window:allow-set-shadow",
+    "core:window:allow-set-resizable",
+    "core:window:allow-set-always-on-top",
+    "sql:default",
+    "sql:allow-execute"
+  ]
+}

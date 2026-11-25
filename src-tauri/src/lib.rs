@@ -715,8 +715,10 @@ fn set_notch_bounds(window: tauri::WebviewWindow, width: f64, height: f64) -> Re
     let monitor = window.current_monitor().map_err(|e| e.to_string())?
         .ok_or("No monitor available")?;
     let scale = monitor.scale_factor();
-    let width = (width.clamp(320.0, 680.0) * scale).round() as i32;
-    let height = (height.clamp(36.0, 180.0) * scale).round() as i32;
+    let max_width = (monitor.size().width as i32 - (48.0 * scale).round() as i32).max((320.0 * scale) as i32);
+    let max_height = (monitor.size().height as i32 - (40.0 * scale).round() as i32).max((36.0 * scale) as i32);
+    let width = ((width.clamp(320.0, 680.0) * scale).round() as i32).min(max_width);
+    let height = ((height.clamp(36.0, 180.0) * scale).round() as i32).min(max_height);
     let x = monitor.position().x + (monitor.size().width as i32 - width) / 2;
     let y = monitor.position().y;
 
@@ -873,6 +875,12 @@ pub fn run() {
             version: 4,
             description: "repeat_upcoming_event_reminders",
             sql: include_str!("../migrations/0004_reminder_repeat.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "scripture_reflection_and_faith_journey",
+            sql: include_str!("../migrations/0005_faith_journey.sql"),
             kind: MigrationKind::Up,
         },
     ];

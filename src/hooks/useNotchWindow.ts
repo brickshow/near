@@ -66,8 +66,8 @@ export function useNotchWindow() {
             state.velocity = 0;
           }
           const size = {
-            width: COLLAPSED.width + (EXPANDED.width - COLLAPSED.width) * position,
-            height: COLLAPSED.height + (EXPANDED.height - COLLAPSED.height) * position,
+          width: COLLAPSED.width + (EXPANDED.width - COLLAPSED.width) * position,
+          height: COLLAPSED.height + (EXPANDED.height - COLLAPSED.height) * position,
           };
           if (native) await invoke("set_notch_bounds", size);
           else setPreviewSize(size);

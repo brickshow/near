@@ -11,7 +11,7 @@ window.addEventListener("storage", (event) => {
 window.addEventListener("focus", applyAppearance);
 
 // Docked panels need a stable opaque canvas before their first React paint.
-if (["bible", "notes", "church"].includes(new URLSearchParams(location.search).get("window") ?? "")) {
+if (["bible", "notes", "church", "settings", "faith"].includes(new URLSearchParams(location.search).get("window") ?? "")) {
   document.documentElement.classList.add("docked-window");
 }
 

@@ -1,7 +1,9 @@
 import { ChurchCalendarWindow } from "./pages/notes/ChurchCalendarWindow";
+import { FaithJourneyWindow } from "./pages/faith/FaithJourneyWindow";
 import { openDockedWindow } from "./lib/dockedWindow";
 import { NotesWindow } from "./pages/notes/NotesWindow";
 import { useEventReminders } from "./hooks/useEventReminders";
+import { useFaithReminders } from "./hooks/useFaithReminders";
 import { BibleWindow } from "./pages/bible/BibleWindow";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
@@ -98,7 +100,7 @@ const AGENT_CHOICES: AgentChoice[] = ["ChatGPT", "Claude Code", "Local model"];
 
 function App() {
   const windowKind = new URLSearchParams(window.location.search).get("window");
-  const isChatWindow = windowKind === "chat" || windowKind === "bible" || windowKind === "notes" || windowKind === "church" || windowKind === "settings";
+  const isChatWindow = windowKind === "chat" || windowKind === "bible" || windowKind === "notes" || windowKind === "church" || windowKind === "settings" || windowKind === "faith";
   const { resizeNotch, toggle, expanded, previewSize } = useNotchWindow();
   const [collapseDelaySeconds, setCollapseDelaySeconds] = useState(loadCollapseDelaySeconds);
   const [activityCount, setActivityCount] = useState(0);
@@ -131,6 +133,7 @@ function App() {
     };
   }, [reminderVisible, reminderCycle, closeReminder]);
   useEventReminders(!windowKind && isTauri(), showEventReminder);
+  useFaithReminders(!windowKind && isTauri(), goal => setAppModal({ title: "A gentle reminder", message: `You made space for “${goal.title}”. Begin again whenever you’re ready.`, confirmLabel: "Open Faith Journey", cancelLabel: "Maybe later", onConfirm: () => { void openDockedWindow("faith"); } }));
   useEffect(() => {
     if (windowKind) return;
     void getAllWebviewWindows().then(windows => {
@@ -374,6 +377,28 @@ function App() {
       .catch(error => setAppModal({ title: `Could not open ${title}`, message: String(error) }));
   };
 
+  const openBiblePassage = (passage?: { book: number; chapter: number; verse: number; endVerse?: number }) => {
+    const query = passage ? `&book=${passage.book}&chapter=${passage.chapter}&verse=${passage.verse}` : "";
+    void openDockedWindow("bible", message => setAppModal({ title: "Could not open Bible", message }), query)
+      .then(async existing => {
+        if (passage && isTauri() && existing) {
+          const { emitTo } = await import("@tauri-apps/api/event");
+          await emitTo("near-bible", "near://open-passage", { book: passage.book, chapter: passage.chapter, verse: passage.verse });
+        }
+      }).catch(error => setAppModal({ title: "Could not open Bible", message: String(error) }));
+  };
+
+  const openFaithJourney = (passage?: { book: number; chapter: number; verse: number; endVerse?: number }) => {
+    const query = passage ? `&book=${passage.book}&chapter=${passage.chapter}&start=${passage.verse}&end=${passage.endVerse ?? passage.verse}` : "";
+    void openDockedWindow("faith", message => setAppModal({ title: "Could not open Faith Journey", message }), query)
+      .then(async existing => {
+        if (passage && isTauri() && existing) {
+          const { emitTo } = await import("@tauri-apps/api/event");
+          await emitTo("near-faith", "near://start-reflection", passage);
+        }
+      }).catch(error => setAppModal({ title: "Could not open Faith Journey", message: String(error) }));
+  };
+
   async function openChatWindow() {
     if (!isTauri()) {
       window.open("/?window=chat", "near-chat", "popup,width=720,height=620");
@@ -521,17 +546,19 @@ function App() {
             activeTab={homeTab}
             onTabChange={setHomeTab}
             onSettings={() => openPanel("settings")}
+            onFaithJourney={() => openFaithJourney()}
             onChurch={() => openPanel("church")}
             onNotes={() => openPanel("notes")}
             onTalk={startNewVoiceConversation}
             onType={() => void openChatWindow().catch(error => setAppModal({ title: "Could not open Chat", message: String(error) }))}
-            onReviewChange={() => openPanel("bible")}
+            onReviewChange={openBiblePassage}
           />
         );
       case "daily-verse":
         return (
           <DailyVersePage
             onRead={() => navigate("home")}
+            onReflect={passage => openFaithJourney(passage)}
             onLater={() => navigate("home")}
           />
         );
@@ -702,6 +729,7 @@ function App() {
   if (windowKind === "notes") return <NotesWindow />;
   if (windowKind === "bible") return <BibleWindow />;
   if (windowKind === "settings") return <SettingsWindow />;
+  if (windowKind === "faith") return <FaithJourneyWindow />;
   if (isChatWindow) return <ChatWindow />;
   return (
     <>

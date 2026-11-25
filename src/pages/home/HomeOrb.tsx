@@ -9,6 +9,7 @@ export function HomeOrb() {
       <span className="home-orb-book-page home-orb-book-left" />
       <span className="home-orb-book-page home-orb-book-right" />
       <span className="home-orb-book-spine" />
+      <span className="home-orb-book-cross" />
     </span>
     <span className="home-orb-status" />
   </div>;
