@@ -24,9 +24,12 @@ export async function openDockedWindow(kind: "bible" | "notes" | "church" | "set
     await existing.setShadow(false);
     await existing.setResizable(false);
     await existing.setAlwaysOnTop(true);
+    // Linux window managers may ignore configure requests for hidden windows.
+    // Show the retained panel first, then move it to the chosen display edge.
+    await existing.show();
     await existing.setSize(new LogicalSize(width, height));
     await existing.setPosition(new LogicalPosition(x, y));
-    await existing.show(); await existing.setFocus(); window.setTimeout(() => { void hideOtherPanels(); }, 120); return true;
+    await existing.setFocus(); window.setTimeout(() => { void hideOtherPanels(); }, 120); return true;
   }
   const title = { bible: "Holy Bible", notes: "Notes", church: "Church Calendar", settings: "Settings", faith: "Faith Journey" }[kind];
   const panel = new WebviewWindow(`near-${kind}`, {
