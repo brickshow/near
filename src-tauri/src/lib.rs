@@ -692,9 +692,14 @@ async fn chatgpt_status() -> ChatGptStatus {
 }
 
 #[tauri::command]
-async fn chatgpt_disconnect() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(|| {
+async fn chatgpt_disconnect(app: tauri::AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
         let _guard = TOKEN_LOCK.lock().map_err(|error| error.to_string())?;
+        // OpenAI binds an issued client ID to the account and workspace that
+        // registered it. A new account must go through dynamic registration.
+        let mut registration = load_registration(&app)?;
+        registration.client_id = None;
+        save_registration(&app, &registration)?;
         delete_credentials()?;
         *CHAT_MODEL_CACHE.lock().map_err(|error| error.to_string())? = None;
         Ok::<(), String>(())
