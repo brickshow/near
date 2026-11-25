@@ -54,6 +54,8 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     if (!isTauri()) return;
     let active = true;
     let stopListening: (() => void) | undefined;
+    let stopAuthError: (() => void) | undefined;
+    let stopAuthRetry: (() => void) | undefined;
     void refreshConnection();
     void invoke("set_notch_mouse_control", { enabled: loadMouseControl() }).catch(error => setMouseControlError(String(error)));
     void invoke("set_notch_auto_hide_seconds", { seconds: loadNotchAutoHideSeconds() }).catch(error => setMouseControlError(String(error)));
@@ -62,10 +64,16 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     void listen("near://chatgpt-auth-complete", () => void refreshConnection())
       .then(stop => { if (active) stopListening = stop; else stop(); })
       .catch(() => {});
+    void listen<string>("near://chatgpt-auth-error", ({ payload }) => setConnectionError(payload))
+      .then(stop => { if (active) stopAuthError = stop; else stop(); }).catch(() => {});
+    void listen<{ diagnostic: string }>("near://chatgpt-auth-retry", ({ payload }) => setConnectionError(`${payload.diagnostic} A fresh sign-in is opening.`))
+      .then(stop => { if (active) stopAuthRetry = stop; else stop(); }).catch(() => {});
     window.addEventListener("focus", refreshConnection);
     return () => {
       active = false;
       stopListening?.();
+      stopAuthError?.();
+      stopAuthRetry?.();
       window.removeEventListener("focus", refreshConnection);
     };
   }, [refreshConnection]);

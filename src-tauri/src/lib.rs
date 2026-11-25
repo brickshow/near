@@ -21,6 +21,7 @@ use std::net::TcpListener;
 use std::sync::{Mutex, atomic::{AtomicBool, AtomicU64, Ordering}};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::sync::OnceLock;
+use std::collections::HashSet;
 use whisper_rs::WhisperState;
 use url::Url;
 
@@ -28,6 +29,8 @@ const TOKEN_URL: &str = "https://auth.openai.com/api/accounts/oauth/token";
 const RESOURCE: &str = "https://api.openai.com/v1";
 const NEAR_COMPANION_INSTRUCTIONS: &str = "You are NEAR, a calm, caring Christian companion who speaks with the warmth of a brother in Christ and helps the user grow in faith and draw closer to God through prayer, Scripture, and faithful daily living. Make biblical truth the foundation of spiritual answers, not your own unsupported opinions. Listen carefully and acknowledge the user's feelings before offering guidance. When relevant, offer a specific Scripture passage with an accurate book, chapter, and verse, explain its context plainly, and connect it to the user's situation with one gentle, practical next step that can encourage trust in God, hope, love, perseverance, prayer, or service. Offer a short prayer when the user asks or clearly welcomes one. Be comforting without minimizing pain, blaming hardship on weak faith, promising outcomes God has not promised, or forcing positivity. Never use Scripture to shame, threaten, manipulate, or pressure the user. Never invent Bible verses or quotations; identify the translation when quoting, and paraphrase with a clear note if exact wording is uncertain. Distinguish what Scripture explicitly says from interpretation or application. If Scripture does not directly address a question, say so honestly rather than presenting a personal opinion as biblical teaching; acknowledge that Christians may interpret some passages differently. Keep replies concise and natural to hear aloud. Format answers as short, readable paragraphs. For steps, use numbered lines. Never output asterisk characters, markdown emphasis, markdown headings, or markdown bullet symbols. Avoid decorative symbols and stage directions. Ask at most one gentle follow-up question when useful. Respect the user's beliefs, boundaries, and choices. Do not claim to speak for God, know God's will, be clergy or a licensed professional, or have taken actions you have not taken. Be transparent that you are an AI when relevant. For serious health, safety, or emotional concerns, respond with care, be clear about your limits, and encourage appropriate help from trusted people or qualified professionals. If the user may be in immediate danger, prioritize immediate help from local emergency services and someone they trust. Do not invent facts or promises; admit uncertainty when needed.";
 static TOKEN_LOCK: Mutex<()> = Mutex::new(());
+static OAUTH_GENERATION: AtomicU64 = AtomicU64::new(0);
+static REDEEMED_CODES: OnceLock<Mutex<HashSet<[u8; 32]>>> = OnceLock::new();
 static WHISPER_STATE: OnceLock<Mutex<Option<WhisperState>>> = OnceLock::new();
 static OAUTH_HTTP: OnceLock<Result<Client, String>> = OnceLock::new();
 static CHAT_MODEL_CACHE: Mutex<Option<(String, ModelChoices)>> = Mutex::new(None);
@@ -361,10 +364,53 @@ mod oauth_authorization_tests {
         assert_eq!(vault.profiles[0].metadata.client_id, "workspace-a-client");
     }
 
+    #[test]
+    fn callback_client_id_must_match_the_selected_registration() {
+        let existing = ClientRegistration { client_id: Some("account-a-client".into()), host_id: "urn:uuid:host".into() };
+        assert!(resolve_callback_client_id(&existing, Some("account-b-client")).is_err());
+        assert_eq!(resolve_callback_client_id(&existing, None).unwrap(), "account-a-client");
+        let first = ClientRegistration { client_id: None, host_id: existing.host_id };
+        assert_eq!(resolve_callback_client_id(&first, Some("account-b-client")).unwrap(), "account-b-client");
+        assert!(resolve_callback_client_id(&first, None).is_err());
+    }
+
+    #[test]
+    fn fresh_attempt_keeps_redirect_resource_and_original_pkce_verifier() {
+        let state = random_token();
+        let nonce = random_token();
+        let verifier = random_token();
+        assert_ne!(state, nonce);
+        assert_ne!(nonce, verifier);
+        let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+        let registration = ClientRegistration { client_id: None, host_id: "urn:uuid:host".into() };
+        let (_, authorize) = build_authorization_request(&registration, None, "http://127.0.0.1:45123/auth/callback", &state, &nonce, &challenge).unwrap();
+        let query: std::collections::HashMap<String, String> = authorize.query_pairs().map(|(key, value)| (key.into_owned(), value.into_owned())).collect();
+        let form: std::collections::HashMap<&str, &str> = token_exchange_form("issued-client", "one-time-code", &verifier, "http://127.0.0.1:45123/auth/callback").into_iter().collect();
+        assert_eq!(query["redirect_uri"], form["redirect_uri"]);
+        assert_eq!(query["resource"], form["resource"]);
+        assert_eq!(query["code_challenge"], URL_SAFE_NO_PAD.encode(Sha256::digest(form["code_verifier"].as_bytes())));
+        assert_eq!(query["state"], state);
+        assert_eq!(query["nonce"], nonce);
+    }
+
+    #[test]
+    fn expired_code_is_discarded_and_only_a_fresh_code_can_be_claimed() {
+        let first = random_token();
+        let second = random_token();
+        assert!(claim_authorization_code(&first).is_ok());
+        assert!(claim_authorization_code(&first).is_err());
+        assert!(should_retry_invalid_grant(Some(&serde_json::json!({"error":"invalid_grant"})), 1));
+        assert!(!should_retry_invalid_grant(Some(&serde_json::json!({"error":"invalid_grant"})), 0));
+        assert!(claim_authorization_code(&second).is_ok());
+    }
+
 }
 
 #[derive(Serialize)]
 struct ChatGptStatus { connected: bool, email: Option<String>, plan_usage_enabled: bool, message: String }
+
+#[derive(Clone, Serialize)]
+struct ChatGptRetry { url: String, diagnostic: String }
 
 #[derive(Deserialize)]
 struct ChatTurn { role: String, content: String }
@@ -684,7 +730,7 @@ fn read_oauth_callback(listener: TcpListener, expected_state: &str) -> Result<(S
         let callback = Url::parse(&format!("http://127.0.0.1{path}")).map_err(|e| e.to_string())?;
         if callback.path() != "/auth/callback" { continue; }
         let query: std::collections::HashMap<String, String> = callback.query_pairs().map(|(k, v)| (k.into_owned(), v.into_owned())).collect();
-        let body = "<!doctype html><html><head><meta charset='utf-8'><title>NEAR connected</title><style>body{font:16px Segoe UI,sans-serif;background:#08131d;color:#eef6fb;text-align:center;padding:48px}</style></head><body><p>NEAR is connected. Returning to the app…</p><script>window.close();setTimeout(()=>location.replace('about:blank'),250)</script></body></html>";
+        let body = "<!doctype html><html><head><meta charset='utf-8'><title>NEAR sign-in</title><style>body{font:16px Segoe UI,sans-serif;background:#08131d;color:#eef6fb;text-align:center;padding:48px}</style></head><body><p>NEAR received the sign-in response. Checking the connection…</p><script>window.close();setTimeout(()=>location.replace('about:blank'),250)</script></body></html>";
         let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body);
         let _ = stream.write_all(response.as_bytes());
         if query.get("state").map(String::as_str) != Some(expected_state) { return Err("ChatGPT sign-in state did not match.".into()); }
@@ -701,24 +747,55 @@ fn read_oauth_callback(listener: TcpListener, expected_state: &str) -> Result<(S
     }
 }
 
-fn complete_oauth(app: tauri::AppHandle, listener: TcpListener, redirect_uri: String, registration: ClientRegistration, state: String, nonce: String, verifier: String, old_subject: Option<String>) -> Result<(), String> {
+fn resolve_callback_client_id(registration: &ClientRegistration, callback_client_id: Option<&str>) -> Result<String, String> {
+    match (registration.client_id.as_deref(), callback_client_id) {
+        (Some(expected), Some(returned)) if expected != returned => Err("ChatGPT callback client ID did not match this account registration. Start a new sign-in.".into()),
+        (Some(expected), _) => Ok(expected.into()),
+        (None, Some(issued)) if issued != "dynamic_agent_client" && !issued.is_empty() => Ok(issued.into()),
+        (None, _) => Err("ChatGPT did not return an issued client ID for this new account.".into()),
+    }
+}
+
+fn token_exchange_form<'a>(client_id: &'a str, code: &'a str, verifier: &'a str, redirect_uri: &'a str) -> [(&'static str, &'a str); 6] {
+    [("grant_type", "authorization_code"), ("client_id", client_id), ("code", code),
+        ("code_verifier", verifier), ("redirect_uri", redirect_uri), ("resource", RESOURCE)]
+}
+
+fn should_retry_invalid_grant(body: Option<&serde_json::Value>, retry_remaining: u8) -> bool {
+    retry_remaining > 0 && body.and_then(|value| value.get("error")).and_then(serde_json::Value::as_str) == Some("invalid_grant")
+}
+
+fn claim_authorization_code(code: &str) -> Result<(), String> {
+    let code_hash: [u8; 32] = Sha256::digest(code.as_bytes()).into();
+    if !REDEEMED_CODES.get_or_init(|| Mutex::new(HashSet::new())).lock().map_err(|e| e.to_string())?.insert(code_hash) {
+        return Err("ChatGPT returned an authorization code that was already exchanged. Start a fresh sign-in.".into());
+    }
+    Ok(())
+}
+
+fn complete_oauth(app: tauri::AppHandle, listener: TcpListener, redirect_uri: String, registration: ClientRegistration, state: String, nonce: String, verifier: String, old_subject: Option<String>, generation: u64, retry_remaining: u8) -> Result<(), String> {
     let (code, callback_client_id) = read_oauth_callback(listener, &state)?;
-    let client_id = registration.client_id.clone().or(callback_client_id).ok_or("ChatGPT did not return the app registration id")?;
-    if registration.client_id.as_ref().is_some_and(|existing| existing != &client_id) { return Err("ChatGPT returned a different app registration.".into()); }
-    let response = oauth_http()?.post(TOKEN_URL).form(&[
-        ("grant_type", "authorization_code"),
-        ("client_id", client_id.as_str()),
-        ("code", code.as_str()),
-        ("code_verifier", verifier.as_str()),
-        ("redirect_uri", redirect_uri.as_str()),
-        ("resource", RESOURCE),
-    ]).send().map_err(|e| format!("Could not complete ChatGPT sign-in: {e}"))?;
+    if OAUTH_GENERATION.load(Ordering::SeqCst) != generation { return Ok(()); }
+    let client_id = resolve_callback_client_id(&registration, callback_client_id.as_deref())?;
+    claim_authorization_code(&code)?;
+    let response = oauth_http()?.post(TOKEN_URL).form(&token_exchange_form(&client_id, &code, &verifier, &redirect_uri))
+        .send().map_err(|e| format!("Could not complete ChatGPT sign-in: {e}"))?;
     if !response.status().is_success() {
         let status = response.status();
         let request_id = response.headers().get("x-request-id").and_then(|value| value.to_str().ok()).map(str::to_string);
         let body = response.json::<serde_json::Value>().ok();
-        return Err(token_exchange_failure("ChatGPT token exchange failed", status, body.as_ref(), request_id.as_deref()));
+        let invalid_grant = should_retry_invalid_grant(body.as_ref(), retry_remaining);
+        let diagnostic = token_exchange_failure("ChatGPT token exchange failed", status, body.as_ref(), request_id.as_deref());
+        if OAUTH_GENERATION.load(Ordering::SeqCst) != generation { return Ok(()); }
+        if invalid_grant {
+            let retry_registration = ClientRegistration { client_id: Some(client_id), host_id: registration.host_id };
+            let url = start_oauth_attempt(app.clone(), retry_registration, None, old_subject, retry_remaining - 1)?;
+            app.emit("near://chatgpt-auth-retry", ChatGptRetry { url, diagnostic }).map_err(|e| e.to_string())?;
+            return Ok(());
+        }
+        return Err(diagnostic);
     }
+    if OAUTH_GENERATION.load(Ordering::SeqCst) != generation { return Ok(()); }
     let tokens: OAuthTokenResponse = response.json().map_err(|e| format!("Invalid ChatGPT token response: {e}"))?;
     let claims = validate_id_token(tokens.id_token.as_deref().ok_or("ChatGPT did not return an ID token")?, &client_id, &nonce)?;
     if old_subject.as_ref().is_some_and(|subject| subject != &claims.sub) { return Err("You signed into a different ChatGPT account. Sign out of the current NEAR account first.".into()); }
@@ -728,22 +805,14 @@ fn complete_oauth(app: tauri::AppHandle, listener: TcpListener, redirect_uri: St
         expires_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() + tokens.expires_in,
     };
     let _guard = TOKEN_LOCK.lock().map_err(|error| error.to_string())?;
+    if OAUTH_GENERATION.load(Ordering::SeqCst) != generation { return Ok(()); }
     store_credentials(&tokens, &metadata)?;
     save_registration(&app, &ClientRegistration { client_id: Some(client_id), host_id: registration.host_id })?;
     let _ = app.emit("near://chatgpt-auth-complete", ());
     Ok(())
 }
 
-#[tauri::command]
-fn chatgpt_begin_login(app: tauri::AppHandle, new_account: bool) -> Result<String, String> {
-    let mut registration = load_registration(&app)?;
-    let old_credentials = if new_account { None } else { load_credentials()? };
-    if new_account || old_credentials.is_none() {
-        // OpenAI binds an issued client ID to one account and workspace.
-        // A different account must register through dynamic_agent_client.
-        registration.client_id = None;
-    }
-    let old_metadata = old_credentials.as_ref().map(|stored| stored.metadata.clone());
+fn start_oauth_attempt(app: tauri::AppHandle, registration: ClientRegistration, credentials: Option<StoredCredentials>, old_subject: Option<String>, retry_remaining: u8) -> Result<String, String> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| format!("Could not start local sign-in callback: {e}"))?;
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
@@ -753,15 +822,29 @@ fn chatgpt_begin_login(app: tauri::AppHandle, new_account: bool) -> Result<Strin
     let verifier = random_token();
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let (registration, authorize) = build_authorization_request(
-        &registration, old_credentials.as_ref(), &redirect_uri, &state, &nonce, &challenge,
+        &registration, credentials.as_ref(), &redirect_uri, &state, &nonce, &challenge,
     )?;
+    let generation = {
+        let _guard = TOKEN_LOCK.lock().map_err(|error| error.to_string())?;
+        OAUTH_GENERATION.fetch_add(1, Ordering::SeqCst) + 1
+    };
     let app_handle = app.clone();
     std::thread::spawn(move || {
-        if let Err(error) = complete_oauth(app_handle.clone(), listener, redirect_uri, registration, state, nonce, verifier, old_metadata.map(|m| m.subject)) {
+        if let Err(error) = complete_oauth(app_handle.clone(), listener, redirect_uri, registration, state, nonce, verifier, old_subject, generation, retry_remaining) {
+            if OAUTH_GENERATION.load(Ordering::SeqCst) != generation { return; }
             let _ = app_handle.emit("near://chatgpt-auth-error", error);
         }
     });
     Ok(authorize.to_string())
+}
+
+#[tauri::command]
+fn chatgpt_begin_login(app: tauri::AppHandle, new_account: bool) -> Result<String, String> {
+    let mut registration = load_registration(&app)?;
+    let credentials = if new_account { None } else { load_credentials()? };
+    if new_account || credentials.is_none() { registration.client_id = None; }
+    let old_subject = credentials.as_ref().map(|stored| stored.metadata.subject.clone());
+    start_oauth_attempt(app, registration, credentials, old_subject, 1)
 }
 
 #[derive(Serialize)]

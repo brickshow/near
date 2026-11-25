@@ -354,6 +354,14 @@ function App() {
         setPage("choose-agent");
       }
     }).then((stop) => { if (disposed) stop(); else unlisten.push(stop); }).catch(() => {});
+    void listen<{ url: string; diagnostic: string }>("near://chatgpt-auth-retry", ({ payload }) => {
+      if (disposed) return;
+      setChatGptSignInMessage(`${payload.diagnostic} A fresh sign-in was opened. Finish it in the new browser tab.`);
+      void openUrl(payload.url).catch(error => {
+        setChatGptSignInBusy(false);
+        setChatGptSignInMessage(`Could not reopen ChatGPT sign-in: ${String(error)}`);
+      });
+    }).then((stop) => { if (disposed) stop(); else unlisten.push(stop); }).catch(() => {});
     return () => { disposed = true; unlisten.forEach((stop) => stop()); };
   }, []);
 
