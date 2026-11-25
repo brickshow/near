@@ -57,6 +57,7 @@ import { VoiceSettingsPage } from "./pages/voice-setup/VoiceSettingsPage";
 import { FinishSetupPage } from "./pages/voice-setup/FinishSetupPage";
 import { NEAR_VOICE_KEY, stopNearVoice, type NearSpeechStream } from "./lib/voice";
 import { sendChat, type ChatTurn } from "./lib/chat";
+import { friendlyChatGptError } from "./lib/chatgptErrors";
 import { COLLAPSE_DELAY_KEY, loadCollapseDelaySeconds } from "./lib/notchPreferences";
 import { localTranscription, type TranscriptionSession } from "./lib/transcription";
 
@@ -350,16 +351,16 @@ function App() {
     void listen<string>("near://chatgpt-auth-error", ({ payload }) => {
       if (!disposed) {
         setChatGptSignInBusy(false);
-        setChatGptSignInMessage(`ChatGPT connection failed: ${payload}`);
+        setChatGptSignInMessage(friendlyChatGptError(payload));
         setPage("choose-agent");
       }
     }).then((stop) => { if (disposed) stop(); else unlisten.push(stop); }).catch(() => {});
     void listen<{ url: string; diagnostic: string }>("near://chatgpt-auth-retry", ({ payload }) => {
       if (disposed) return;
-      setChatGptSignInMessage(`${payload.diagnostic} A fresh sign-in was opened. Finish it in the new browser tab.`);
+      setChatGptSignInMessage(`${friendlyChatGptError(payload.diagnostic)} A fresh sign-in was opened in a new browser tab.`);
       void openUrl(payload.url).catch(error => {
         setChatGptSignInBusy(false);
-        setChatGptSignInMessage(`Could not reopen ChatGPT sign-in: ${String(error)}`);
+        setChatGptSignInMessage(friendlyChatGptError(error));
       });
     }).then((stop) => { if (disposed) stop(); else unlisten.push(stop); }).catch(() => {});
     return () => { disposed = true; unlisten.forEach((stop) => stop()); };

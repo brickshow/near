@@ -879,7 +879,7 @@ async fn chatgpt_status() -> ChatGptStatus {
     match tauri::async_runtime::spawn_blocking(|| load_credentials().map(|value| value.map(|credentials| credentials.metadata))).await {
         Ok(Ok(Some(metadata))) => {
             let enabled = metadata.scopes.iter().any(|scope| scope == "chatgpt.tokens.use.direct");
-            ChatGptStatus { connected: true, email: metadata.email, plan_usage_enabled: enabled, message: if enabled { "ChatGPT connected" } else { "ChatGPT connected. Allow plan usage to enable AI assistance." }.into() }
+            ChatGptStatus { connected: true, email: metadata.email, plan_usage_enabled: enabled, message: if enabled { "ChatGPT connected" } else { "ChatGPT account connected, but NEAR AI requires ChatGPT Go, Plus, Pro, or Business plan usage." }.into() }
         },
         Ok(Ok(None)) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: "No AI account connected. Local features are ready; connect your own ChatGPT account to use AI assistance.".into() },
         Ok(Err(error)) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: error },

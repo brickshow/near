@@ -12,6 +12,7 @@ import { getTheme, MOTION_KEY, setReducedMotion, setTheme } from "../../lib/appe
 import packageInfo from "../../../package.json";
 import { loadCollapseDelaySeconds, loadMouseControl, loadNotchAutoHideSeconds, saveCollapseDelaySeconds, saveMouseControl, saveNotchAutoHideSeconds } from "../../lib/notchPreferences";
 import { loadNoteMicrophone, saveNoteMicrophone } from "../../lib/notePreferences";
+import { friendlyChatGptError } from "../../lib/chatgptErrors";
 import "./SettingsPage.css";
 
 type Props = { voiceName: string; onVoiceChange: (voiceName: string) => void };
@@ -64,9 +65,9 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     void listen("near://chatgpt-auth-complete", () => void refreshConnection())
       .then(stop => { if (active) stopListening = stop; else stop(); })
       .catch(() => {});
-    void listen<string>("near://chatgpt-auth-error", ({ payload }) => setConnectionError(payload))
+    void listen<string>("near://chatgpt-auth-error", ({ payload }) => setConnectionError(friendlyChatGptError(payload)))
       .then(stop => { if (active) stopAuthError = stop; else stop(); }).catch(() => {});
-    void listen<{ diagnostic: string }>("near://chatgpt-auth-retry", ({ payload }) => setConnectionError(`${payload.diagnostic} A fresh sign-in is opening.`))
+    void listen<{ diagnostic: string }>("near://chatgpt-auth-retry", ({ payload }) => setConnectionError(`${friendlyChatGptError(payload.diagnostic)} A fresh sign-in is opening.`))
       .then(stop => { if (active) stopAuthRetry = stop; else stop(); }).catch(() => {});
     window.addEventListener("focus", refreshConnection);
     return () => {
@@ -99,7 +100,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
       const url = await invoke<string>("chatgpt_begin_login", { newAccount: true });
       await openUrl(url);
     } catch (error) {
-      setConnectionError(`Could not open ChatGPT sign-in: ${String(error)}`);
+      setConnectionError(friendlyChatGptError(error));
     } finally {
       setConnecting(false);
     }
@@ -123,7 +124,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
       const url = await invoke<string>("chatgpt_begin_login", { newAccount: true });
       await openUrl(url);
     } catch (error) {
-      setConnectionError(`Could not switch ChatGPT account: ${String(error)}`);
+      setConnectionError(friendlyChatGptError(error));
     } finally {
       setConnecting(false);
     }
@@ -147,7 +148,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     </header>
     <section className="settings-section" aria-labelledby="connection-settings-title">
       <h2 id="connection-settings-title">AI provider</h2>
-      <p>ChatGPT is currently supported. Connect your own account through OpenAI sign-in; NEAR keeps its credentials in this operating system account’s secure storage. NEAR’s local features remain available when disconnected.</p>
+      <p>ChatGPT AI requires a Go, Plus, Pro, or Business plan. Free accounts can connect, but cannot use ChatGPT AI in NEAR. Local features remain available.</p>
       <p className={`settings-connection-status ${connection?.connected ? "is-connected" : ""}`} role="status">{connection?.message ?? "Checking connection..."}</p>
       {connection?.email && <p className="settings-detail"><span>Account</span><strong>{connection.email}</strong></p>}
       {connection?.connected && <p className="settings-detail"><span>Plan usage</span><strong>{connection.plan_usage_enabled ? "Enabled" : "Not enabled"}</strong></p>}
