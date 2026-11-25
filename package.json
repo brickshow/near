@@ -6,11 +6,12 @@
   "scripts": {
     "test:faith": "node --test scripts/faith-journey.test.mjs",
     "setup:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-windows-build.ps1",
+    "setup:linux": "sh scripts/setup-linux.sh",
     "dev": "vite",
     "prototype:home": "vite --open /?variant=A",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "node scripts/tauri.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
