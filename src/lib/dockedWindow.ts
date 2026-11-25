@@ -27,6 +27,7 @@ export async function openDockedWindow(kind: "bible" | "notes" | "church" | "set
     // Linux window managers may ignore configure requests for hidden windows.
     // Show the retained panel first, then move it to the chosen display edge.
     await existing.show();
+    await new Promise(resolve => window.setTimeout(resolve, 100));
     await existing.setSize(new LogicalSize(width, height));
     await existing.setPosition(new LogicalPosition(x, y));
     await existing.setFocus(); window.setTimeout(() => { void hideOtherPanels(); }, 120); return true;
