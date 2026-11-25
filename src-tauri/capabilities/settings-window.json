@@ -9,6 +9,7 @@
     "core:app:allow-version",
     "core:window:allow-close",
     "core:window:allow-current-monitor",
+    "core:window:allow-primary-monitor",
     "core:window:allow-set-focus",
     "core:window:allow-show",
     "core:window:allow-hide",
