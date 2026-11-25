@@ -653,9 +653,14 @@ fn complete_oauth(app: tauri::AppHandle, listener: TcpListener, redirect_uri: St
 }
 
 #[tauri::command]
-fn chatgpt_begin_login(app: tauri::AppHandle) -> Result<String, String> {
-    let registration = load_registration(&app)?;
-    let old_credentials = load_credentials()?;
+fn chatgpt_begin_login(app: tauri::AppHandle, new_account: bool) -> Result<String, String> {
+    let mut registration = load_registration(&app)?;
+    let old_credentials = if new_account { None } else { load_credentials()? };
+    if new_account {
+        // OpenAI binds an issued client ID to one account and workspace.
+        // A different account must register through dynamic_agent_client.
+        registration.client_id = None;
+    }
     let old_metadata = old_credentials.as_ref().map(|stored| stored.metadata.clone());
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| format!("Could not start local sign-in callback: {e}"))?;
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;

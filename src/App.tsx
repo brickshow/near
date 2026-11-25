@@ -206,7 +206,7 @@ function App() {
     setChatGptSignInMessage("");
     setChatGptSignInMessage("Opening ChatGPT sign-in…");
     try {
-      const url = await invoke<string>("chatgpt_begin_login");
+      const url = await invoke<string>("chatgpt_begin_login", { newAccount: false });
       await openUrl(url);
       setChatGptSignInMessage("Finish signing in in your browser. NEAR will continue automatically.");
     } catch (error) {

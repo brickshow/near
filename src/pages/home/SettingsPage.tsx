@@ -81,7 +81,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     setConnecting(true);
     setConnectionError("");
     try {
-      const url = await invoke<string>("chatgpt_begin_login");
+      const url = await invoke<string>("chatgpt_begin_login", { newAccount: false });
       await openUrl(url);
     } catch (error) {
       setConnectionError(`Could not open ChatGPT sign-in: ${String(error)}`);
@@ -105,9 +105,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     setConnecting(true);
     setConnectionError("");
     try {
-      await invoke("chatgpt_disconnect");
-      await refreshConnection();
-      const url = await invoke<string>("chatgpt_begin_login");
+      const url = await invoke<string>("chatgpt_begin_login", { newAccount: true });
       await openUrl(url);
     } catch (error) {
       setConnectionError(`Could not switch ChatGPT account: ${String(error)}`);
