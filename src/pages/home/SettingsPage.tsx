@@ -16,12 +16,14 @@ import "./SettingsPage.css";
 
 type Props = { voiceName: string; onVoiceChange: (voiceName: string) => void };
 type ChatGptStatus = { connected: boolean; email: string | null; plan_usage_enabled: boolean; message: string };
+type ChatGptProfile = { clientId: string; email: string | null; active: boolean };
 
 export function SettingsPage({ voiceName, onVoiceChange }: Props) {
   const [preferences, setPreferences] = useState(loadReminderPreferences);
   const [theme, updateTheme] = useState(getTheme);
   const [reducedMotion, updateReducedMotion] = useState(() => localStorage.getItem(MOTION_KEY) === "true");
   const [connection, setConnection] = useState<ChatGptStatus | null>(null);
+  const [profiles, setProfiles] = useState<ChatGptProfile[]>([]);
   const [connectionError, setConnectionError] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [version, setVersion] = useState(packageInfo.version);
@@ -37,7 +39,12 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
   const update = (change: Partial<typeof preferences>) => setPreferences(current => saveReminderPreferences({ ...current, ...change }));
   const refreshConnection = useCallback(async () => {
     try {
-      setConnection(await invoke<ChatGptStatus>("chatgpt_status"));
+      const [status, savedProfiles] = await Promise.all([
+        invoke<ChatGptStatus>("chatgpt_status"),
+        invoke<ChatGptProfile[]>("chatgpt_profiles"),
+      ]);
+      setConnection(status);
+      setProfiles(savedProfiles);
       setConnectionError("");
     } catch (error) {
       setConnectionError(`Could not check ChatGPT connection: ${String(error)}`);
@@ -81,7 +88,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     setConnecting(true);
     setConnectionError("");
     try {
-      const url = await invoke<string>("chatgpt_begin_login", { newAccount: false });
+      const url = await invoke<string>("chatgpt_begin_login", { newAccount: true });
       await openUrl(url);
     } catch (error) {
       setConnectionError(`Could not open ChatGPT sign-in: ${String(error)}`);
@@ -113,6 +120,18 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
       setConnecting(false);
     }
   };
+  const selectChatGpt = async (clientId: string) => {
+    setConnecting(true);
+    setConnectionError("");
+    try {
+      await invoke("chatgpt_select_profile", { clientId });
+      await refreshConnection();
+    } catch (error) {
+      setConnectionError(`Could not select ChatGPT account: ${String(error)}`);
+    } finally {
+      setConnecting(false);
+    }
+  };
   return <main className="notes-window settings-window">
     <header className="notes-header settings-header">
       <div><h1>Settings</h1><p>Make NEAR comfortable for you.</p></div>
@@ -124,6 +143,12 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
       <p className={`settings-connection-status ${connection?.connected ? "is-connected" : ""}`} role="status">{connection?.message ?? "Checking connection..."}</p>
       {connection?.email && <p className="settings-detail"><span>Account</span><strong>{connection.email}</strong></p>}
       {connection?.connected && <p className="settings-detail"><span>Plan usage</span><strong>{connection.plan_usage_enabled ? "Enabled" : "Not enabled"}</strong></p>}
+      {profiles.length > 0 && <div className="settings-saved-accounts" aria-label="Saved ChatGPT accounts">
+        {profiles.map(profile => <div className="settings-detail" key={profile.clientId}>
+          <span>{profile.email ?? "ChatGPT account"} · {profile.clientId.slice(-8)}</span>
+          <button className="settings-secondary-action" disabled={connecting || profile.active} onClick={() => void selectChatGpt(profile.clientId)}>{profile.active ? "Active" : "Use account"}</button>
+        </div>)}
+      </div>}
       {connectionError && <p className="notes-error" role="alert">{connectionError}</p>}
       <div className="settings-actions">
         {!connection?.connected && <button className="settings-primary-action" disabled={connecting} onClick={() => void connectChatGpt()}>{connecting ? "Opening sign-in..." : "Connect ChatGPT"}</button>}

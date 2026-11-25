@@ -208,12 +208,41 @@ struct OAuthTokenResponse {
     scope: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct StoredCredentials {
     access_token: String,
     refresh_token: String,
     id_token: String,
     metadata: CredentialMetadata,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+struct CredentialVault {
+    active_client_id: Option<String>,
+    profiles: Vec<StoredCredentials>,
+}
+
+impl CredentialVault {
+    fn upsert(&mut self, credentials: StoredCredentials) {
+        let client_id = credentials.metadata.client_id.clone();
+        if let Some(profile) = self.profiles.iter_mut().find(|profile| profile.metadata.client_id == client_id) {
+            *profile = credentials;
+        } else {
+            self.profiles.push(credentials);
+        }
+        self.active_client_id = Some(client_id);
+    }
+
+    fn disconnect_active(&mut self) {
+        self.profiles.retain(|profile| Some(&profile.metadata.client_id) != self.active_client_id.as_ref());
+        self.active_client_id = None;
+    }
+}
+
+fn decode_vault(raw: &[u8]) -> Result<CredentialVault, String> {
+    if let Ok(vault) = serde_json::from_slice::<CredentialVault>(raw) { return Ok(vault); }
+    let legacy: StoredCredentials = serde_json::from_slice(raw).map_err(|e| format!("Stored ChatGPT credentials could not be read: {e}"))?;
+    Ok(CredentialVault { active_client_id: Some(legacy.metadata.client_id.clone()), profiles: vec![legacy] })
 }
 
 fn registration_for_authorization(registration: &ClientRegistration, credentials: Option<&StoredCredentials>) -> ClientRegistration {
@@ -266,9 +295,10 @@ mod oauth_authorization_tests {
             "ChatGPT token exchange failed",
             reqwest::StatusCode::BAD_REQUEST,
             Some(&body),
+            Some("req-123"),
         );
 
-        assert_eq!(message, "ChatGPT token exchange failed (400 Bad Request; invalid_grant).");
+        assert_eq!(message, "ChatGPT token exchange failed (400 Bad Request; invalid_grant). Request ID: req-123.");
         assert!(!message.contains("Sensitive provider detail"));
     }
 
@@ -308,6 +338,27 @@ mod oauth_authorization_tests {
         assert_eq!(query.get("client_id").map(String::as_str), Some("dynamic_agent_client"));
         assert_eq!(query.get("agent_name_hint").map(String::as_str), Some("NEAR"));
         assert!(!query.contains_key("id_token_hint"));
+    }
+
+    #[test]
+    fn distinct_account_profiles_keep_their_own_registration_and_tokens() {
+        let profile = |client_id: &str, subject: &str| StoredCredentials {
+            access_token: format!("access-{subject}"),
+            refresh_token: format!("refresh-{subject}"),
+            id_token: format!("id-{subject}"),
+            metadata: CredentialMetadata { client_id: client_id.into(), subject: subject.into(), email: None,
+                scopes: vec!["chatgpt.tokens.use.direct".into()], expires_at: 0 },
+        };
+        let mut vault = CredentialVault::default();
+        vault.upsert(profile("workspace-a-client", "user-a"));
+        vault.upsert(profile("workspace-b-client", "user-b"));
+        assert_eq!(vault.profiles.len(), 2);
+        assert_eq!(vault.active_client_id.as_deref(), Some("workspace-b-client"));
+        assert_eq!(vault.profiles[0].refresh_token, "refresh-user-a");
+        assert_eq!(vault.profiles[1].refresh_token, "refresh-user-b");
+        vault.disconnect_active();
+        assert_eq!(vault.profiles.len(), 1);
+        assert_eq!(vault.profiles[0].metadata.client_id, "workspace-a-client");
     }
 
 }
@@ -386,18 +437,18 @@ fn unprotect_credentials(encrypted: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 #[cfg(windows)]
-fn load_credentials() -> Result<Option<StoredCredentials>, String> {
+fn load_vault() -> Result<Option<CredentialVault>, String> {
     let path = credential_file()?;
     if !path.exists() { return Ok(None); }
     let encrypted = std::fs::read(path).map_err(|e| e.to_string())?;
     let clear = unprotect_credentials(&encrypted)?;
-    serde_json::from_slice(&clear).map(Some).map_err(|e| format!("Stored ChatGPT credentials could not be read: {e}"))
+    decode_vault(&clear).map(Some)
 }
 
 #[cfg(windows)]
-fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
+fn save_vault(vault: &CredentialVault) -> Result<(), String> {
     let path = credential_file()?;
-    let clear = serde_json::to_vec(credentials).map_err(|e| e.to_string())?;
+    let clear = serde_json::to_vec(vault).map_err(|e| e.to_string())?;
     let encrypted = protect_credentials(&clear)?;
     let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
     std::fs::write(&temporary, encrypted).map_err(|e| e.to_string())?;
@@ -405,7 +456,7 @@ fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
 }
 
 #[cfg(windows)]
-fn delete_credentials() -> Result<(), String> {
+fn delete_vault() -> Result<(), String> {
     match std::fs::remove_file(credential_file()?) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -414,25 +465,25 @@ fn delete_credentials() -> Result<(), String> {
 }
 
 #[cfg(target_os = "macos")]
-fn load_credentials() -> Result<Option<StoredCredentials>, String> {
+fn load_vault() -> Result<Option<CredentialVault>, String> {
     let entry = keyring::Entry::new("com.app.near", "chatgpt-session").map_err(|e| e.to_string())?;
     let clear = match entry.get_password() {
         Ok(value) => value,
         Err(keyring::Error::NoEntry) => return Ok(None),
         Err(error) => return Err(format!("Could not read ChatGPT credentials from macOS Keychain: {error}")),
     };
-    serde_json::from_str(&clear).map(Some).map_err(|e| format!("Stored ChatGPT credentials could not be read: {e}"))
+    decode_vault(clear.as_bytes()).map(Some)
 }
 
 #[cfg(target_os = "macos")]
-fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
+fn save_vault(vault: &CredentialVault) -> Result<(), String> {
     let entry = keyring::Entry::new("com.app.near", "chatgpt-session").map_err(|e| e.to_string())?;
-    let clear = serde_json::to_string(credentials).map_err(|e| e.to_string())?;
+    let clear = serde_json::to_string(vault).map_err(|e| e.to_string())?;
     entry.set_password(&clear).map_err(|e| format!("Could not save ChatGPT credentials to macOS Keychain: {e}"))
 }
 
 #[cfg(target_os = "macos")]
-fn delete_credentials() -> Result<(), String> {
+fn delete_vault() -> Result<(), String> {
     let entry = keyring::Entry::new("com.app.near", "chatgpt-session").map_err(|e| e.to_string())?;
     match entry.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
@@ -441,7 +492,7 @@ fn delete_credentials() -> Result<(), String> {
 }
 
 #[cfg(target_os = "linux")]
-fn load_credentials() -> Result<Option<StoredCredentials>, String> {
+fn load_vault() -> Result<Option<CredentialVault>, String> {
     let entry = keyring::Entry::new("com.app.near", "chatgpt-session")
         .map_err(|error| format!("Could not open the Linux Secret Service keyring: {error}"))?;
     let clear = match entry.get_password() {
@@ -449,19 +500,19 @@ fn load_credentials() -> Result<Option<StoredCredentials>, String> {
         Err(keyring::Error::NoEntry) => return Ok(None),
         Err(error) => return Err(format!("Could not read ChatGPT credentials from the Linux Secret Service keyring: {error}")),
     };
-    serde_json::from_str(&clear).map(Some).map_err(|error| format!("Stored ChatGPT credentials could not be read: {error}"))
+    decode_vault(clear.as_bytes()).map(Some)
 }
 
 #[cfg(target_os = "linux")]
-fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
+fn save_vault(vault: &CredentialVault) -> Result<(), String> {
     let entry = keyring::Entry::new("com.app.near", "chatgpt-session")
         .map_err(|error| format!("Could not open the Linux Secret Service keyring: {error}"))?;
-    let clear = serde_json::to_string(credentials).map_err(|error| error.to_string())?;
+    let clear = serde_json::to_string(vault).map_err(|error| error.to_string())?;
     entry.set_password(&clear).map_err(|error| format!("Could not save ChatGPT credentials to the Linux Secret Service keyring: {error}"))
 }
 
 #[cfg(target_os = "linux")]
-fn delete_credentials() -> Result<(), String> {
+fn delete_vault() -> Result<(), String> {
     let entry = keyring::Entry::new("com.app.near", "chatgpt-session")
         .map_err(|error| format!("Could not open the Linux Secret Service keyring: {error}"))?;
     match entry.delete_credential() {
@@ -471,18 +522,36 @@ fn delete_credentials() -> Result<(), String> {
 }
 
 #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+fn load_vault() -> Result<Option<CredentialVault>, String> {
+    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+fn save_vault(_: &CredentialVault) -> Result<(), String> {
+    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+fn delete_vault() -> Result<(), String> {
+    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+}
+
 fn load_credentials() -> Result<Option<StoredCredentials>, String> {
-    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+    let Some(vault) = load_vault()? else { return Ok(None); };
+    let active_client_id = vault.active_client_id;
+    Ok(vault.profiles.into_iter().find(|profile| Some(&profile.metadata.client_id) == active_client_id.as_ref()))
 }
 
-#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
-fn save_credentials(_: &StoredCredentials) -> Result<(), String> {
-    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+fn save_credentials(credentials: &StoredCredentials) -> Result<(), String> {
+    let mut vault = load_vault()?.unwrap_or_default();
+    vault.upsert(credentials.clone());
+    save_vault(&vault)
 }
 
-#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn delete_credentials() -> Result<(), String> {
-    Err("Secure ChatGPT credential storage is unavailable on this platform.".into())
+    let Some(mut vault) = load_vault()? else { return Ok(()); };
+    vault.disconnect_active();
+    if vault.profiles.is_empty() { delete_vault() } else { save_vault(&vault) }
 }
 
 #[cfg(all(test, target_os = "linux"))]
@@ -515,7 +584,7 @@ mod linux_credential_storage_tests {
 }
 
 fn store_credentials(tokens: &OAuthTokenResponse, metadata: &CredentialMetadata) -> Result<(), String> {
-    let old = load_credentials()?;
+    let old = load_credentials()?.filter(|stored| stored.metadata.client_id == metadata.client_id);
     let refresh_token = tokens.refresh_token.clone().or_else(|| old.as_ref().map(|stored| stored.refresh_token.clone()))
         .ok_or("ChatGPT did not return a refresh token")?;
     let id_token = tokens.id_token.clone().or_else(|| old.as_ref().map(|stored| stored.id_token.clone()))
@@ -527,15 +596,19 @@ fn oauth_http() -> Result<Client, String> {
     OAUTH_HTTP.get_or_init(|| Client::builder().timeout(Duration::from_secs(45)).build().map_err(|e| e.to_string())).clone()
 }
 
-fn token_exchange_failure(action: &str, status: reqwest::StatusCode, body: Option<&serde_json::Value>) -> String {
+fn token_exchange_failure(action: &str, status: reqwest::StatusCode, body: Option<&serde_json::Value>, request_id: Option<&str>) -> String {
     let code = body
         .and_then(|value| value.get("error"))
         .and_then(serde_json::Value::as_str)
         .filter(|value| !value.is_empty() && value.len() <= 64 && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')));
-    match code {
+    let request_id = request_id.or_else(|| body.and_then(|value| value.get("request_id")).and_then(serde_json::Value::as_str))
+        .filter(|value| !value.is_empty() && value.len() <= 128 && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')));
+    let mut message = match code {
         Some(code) => format!("{action} ({status}; {code})."),
         None => format!("{action} ({status})."),
-    }
+    };
+    if let Some(request_id) = request_id { message.push_str(&format!(" Request ID: {request_id}.")); }
+    message
 }
 
 fn refresh_credentials() -> Result<(CredentialMetadata, String), String> {
@@ -558,8 +631,9 @@ fn refresh_credentials() -> Result<(CredentialMetadata, String), String> {
     ]).send().map_err(|e| format!("Could not refresh ChatGPT sign-in: {e}"))?;
     if !response.status().is_success() {
         let status = response.status();
+        let request_id = response.headers().get("x-request-id").and_then(|value| value.to_str().ok()).map(str::to_string);
         let body = response.json::<serde_json::Value>().ok();
-        return Err(token_exchange_failure("ChatGPT sign-in needs renewal", status, body.as_ref()));
+        return Err(token_exchange_failure("ChatGPT sign-in needs renewal", status, body.as_ref(), request_id.as_deref()));
     }
     let refreshed: OAuthTokenResponse = response.json().map_err(|e| format!("Invalid token refresh response: {e}"))?;
     access_token = refreshed.access_token.clone();
@@ -614,7 +688,14 @@ fn read_oauth_callback(listener: TcpListener, expected_state: &str) -> Result<(S
         let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body);
         let _ = stream.write_all(response.as_bytes());
         if query.get("state").map(String::as_str) != Some(expected_state) { return Err("ChatGPT sign-in state did not match.".into()); }
-        if let Some(error) = query.get("error") { return Err(format!("ChatGPT sign-in was not completed: {error}")); }
+        if let Some(error) = query.get("error") {
+            let code = error.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-').take(64).collect::<String>();
+            let request_id = query.get("request_id").filter(|value| value.len() <= 128 && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')));
+            return Err(match request_id {
+                Some(request_id) => format!("ChatGPT sign-in was not completed ({code}). Request ID: {request_id}."),
+                None => format!("ChatGPT sign-in was not completed ({code})."),
+            });
+        }
         let code = query.get("code").cloned().ok_or("No authorization code was returned")?;
         return Ok((code, query.get("client_id").cloned()));
     }
@@ -634,18 +715,19 @@ fn complete_oauth(app: tauri::AppHandle, listener: TcpListener, redirect_uri: St
     ]).send().map_err(|e| format!("Could not complete ChatGPT sign-in: {e}"))?;
     if !response.status().is_success() {
         let status = response.status();
+        let request_id = response.headers().get("x-request-id").and_then(|value| value.to_str().ok()).map(str::to_string);
         let body = response.json::<serde_json::Value>().ok();
-        return Err(token_exchange_failure("ChatGPT token exchange failed", status, body.as_ref()));
+        return Err(token_exchange_failure("ChatGPT token exchange failed", status, body.as_ref(), request_id.as_deref()));
     }
     let tokens: OAuthTokenResponse = response.json().map_err(|e| format!("Invalid ChatGPT token response: {e}"))?;
     let claims = validate_id_token(tokens.id_token.as_deref().ok_or("ChatGPT did not return an ID token")?, &client_id, &nonce)?;
     if old_subject.as_ref().is_some_and(|subject| subject != &claims.sub) { return Err("You signed into a different ChatGPT account. Sign out of the current NEAR account first.".into()); }
     let scopes = tokens.scope.as_deref().unwrap_or("").split_whitespace().map(str::to_string).collect::<Vec<_>>();
-    if !scopes.iter().any(|scope| scope == "chatgpt.tokens.use.direct") { return Err("Allow ChatGPT plan usage during sign-in to connect NEAR.".into()); }
     let metadata = CredentialMetadata {
         client_id: client_id.clone(), subject: claims.sub, email: claims.email, scopes,
         expires_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() + tokens.expires_in,
     };
+    let _guard = TOKEN_LOCK.lock().map_err(|error| error.to_string())?;
     store_credentials(&tokens, &metadata)?;
     save_registration(&app, &ClientRegistration { client_id: Some(client_id), host_id: registration.host_id })?;
     let _ = app.emit("near://chatgpt-auth-complete", ());
@@ -656,7 +738,7 @@ fn complete_oauth(app: tauri::AppHandle, listener: TcpListener, redirect_uri: St
 fn chatgpt_begin_login(app: tauri::AppHandle, new_account: bool) -> Result<String, String> {
     let mut registration = load_registration(&app)?;
     let old_credentials = if new_account { None } else { load_credentials()? };
-    if new_account {
+    if new_account || old_credentials.is_none() {
         // OpenAI binds an issued client ID to one account and workspace.
         // A different account must register through dynamic_agent_client.
         registration.client_id = None;
@@ -682,14 +764,40 @@ fn chatgpt_begin_login(app: tauri::AppHandle, new_account: bool) -> Result<Strin
     Ok(authorize.to_string())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ChatGptProfile { client_id: String, email: Option<String>, active: bool }
+
+#[tauri::command]
+fn chatgpt_profiles() -> Result<Vec<ChatGptProfile>, String> {
+    let vault = load_vault()?.unwrap_or_default();
+    Ok(vault.profiles.iter().map(|profile| ChatGptProfile {
+        client_id: profile.metadata.client_id.clone(),
+        email: profile.metadata.email.clone(),
+        active: vault.active_client_id.as_ref() == Some(&profile.metadata.client_id),
+    }).collect())
+}
+
+#[tauri::command]
+fn chatgpt_select_profile(client_id: String) -> Result<(), String> {
+    let _guard = TOKEN_LOCK.lock().map_err(|error| error.to_string())?;
+    let mut vault = load_vault()?.ok_or("No ChatGPT accounts are saved.")?;
+    if !vault.profiles.iter().any(|profile| profile.metadata.client_id == client_id) {
+        return Err("That ChatGPT account is not saved on this device.".into());
+    }
+    vault.active_client_id = Some(client_id);
+    save_vault(&vault)?;
+    *CHAT_MODEL_CACHE.lock().map_err(|error| error.to_string())? = None;
+    Ok(())
+}
+
 #[tauri::command]
 async fn chatgpt_status() -> ChatGptStatus {
-    match tauri::async_runtime::spawn_blocking(|| {
-        if load_credentials()?.is_none() { return Ok(None); }
-        let (metadata, _) = refresh_credentials()?;
-        Ok::<_, String>(Some(metadata))
-    }).await {
-        Ok(Ok(Some(metadata))) => ChatGptStatus { connected: true, email: metadata.email, plan_usage_enabled: true, message: "ChatGPT connected".into() },
+    match tauri::async_runtime::spawn_blocking(|| load_credentials().map(|value| value.map(|credentials| credentials.metadata))).await {
+        Ok(Ok(Some(metadata))) => {
+            let enabled = metadata.scopes.iter().any(|scope| scope == "chatgpt.tokens.use.direct");
+            ChatGptStatus { connected: true, email: metadata.email, plan_usage_enabled: enabled, message: if enabled { "ChatGPT connected" } else { "ChatGPT connected. Allow plan usage to enable AI assistance." }.into() }
+        },
         Ok(Ok(None)) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: "No AI account connected. Local features are ready; connect your own ChatGPT account to use AI assistance.".into() },
         Ok(Err(error)) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: error },
         Err(error) => ChatGptStatus { connected: false, email: None, plan_usage_enabled: false, message: error.to_string() },
@@ -715,7 +823,7 @@ async fn chatgpt_disconnect(app: tauri::AppHandle) -> Result<(), String> {
 async fn prepare_chatgpt() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(|| {
         let (metadata, token) = refresh_credentials()?;
-        cached_chat_models(&metadata.subject, &token).map(|_| ())
+        cached_chat_models(&metadata.client_id, &token).map(|_| ())
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -747,7 +855,7 @@ async fn chatgpt_reply(app: tauri::AppHandle, history: Vec<ChatTurn>, request_id
 fn reply_from_chatgpt(history: Vec<ChatTurn>, mode: ReplyMode, mut on_delta: impl FnMut(&str)) -> Result<String, String> {
         let (metadata, access_token) = refresh_credentials()?;
         let client = oauth_http()?;
-        let model = cached_chat_models(&metadata.subject, &access_token)?.for_mode(mode);
+        let model = cached_chat_models(&metadata.client_id, &access_token)?.for_mode(mode);
         let mut input = Vec::new();
         input.extend(history.iter().filter(|turn| turn.role == "user" || turn.role == "assistant")
             .map(|turn| serde_json::json!({"role":turn.role,"content":turn.content})));
@@ -800,7 +908,7 @@ mod response_benchmark {
         let mut slow = false;
         let preparation = Instant::now();
         let (metadata, token) = refresh_credentials().expect("Sign-in unavailable");
-        cached_chat_models(&metadata.subject, &token).expect("Catalog unavailable");
+        cached_chat_models(&metadata.client_id, &token).expect("Catalog unavailable");
         eprintln!("response preparation_ms={}", preparation.elapsed().as_millis());
         for label in ["first_after_prepare", "next_turn"] {
             let start = Instant::now();
@@ -1115,7 +1223,7 @@ pub fn run() {
                 .add_migrations("sqlite:near.db", migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, chatgpt_disconnect, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible])
+        .invoke_handler(tauri::generate_handler![media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, chatgpt_profiles, chatgpt_select_profile, chatgpt_disconnect, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, event| {
