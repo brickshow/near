@@ -117,10 +117,11 @@ const NameLine: React.FC = () => {
   const frame = useCurrentFrame();
   const opacity = interpolate(frame, [96, 119, 280, 304], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   return <div style={{ position: "absolute", top: 106, left: 0, width: "100%", textAlign: "center", fontFamily: "Arial, sans-serif", fontSize: 25, letterSpacing: ".055em", color: "#E9EEE8", opacity, textShadow: "0 2px 15px rgba(0,0,0,.32)" }}>
-    <span style={{ color: "#57E0A6", fontWeight: 700 }}>N</span>ew&nbsp;
-    <span style={{ color: "#57E0A6", fontWeight: 700 }}>E</span>ncounter&nbsp;
-    <span style={{ color: "#57E0A6", fontWeight: 700 }}>A</span>nd&nbsp;
-    <span style={{ color: "#57E0A6", fontWeight: 700 }}>R</span>enewal
+    {["New", "Encounter", "and", "Renewal"].map((word, index) => {
+      const start = 98 + index * 10;
+      const light = interpolate(frame, [start, start + 14], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"});
+      return <span key={word}><b style={{color: `rgb(${233 - 146 * light}, ${238 - 14 * light}, ${232 - 66 * light})`}}>{word[0]}</b>{word.slice(1)} </span>;
+    })}
   </div>;
 };
 
@@ -130,17 +131,8 @@ export const NearMeetReveal: React.FC<NearMeetProps> = ({ narrationEnabled = tru
   const laptopSpring = spring({ frame, fps, config: { damping: 28, stiffness: 52, mass: 1.1 } });
   const screenFade = interpolate(frame, [0, 42], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   const glow = interpolate(frame, [32, 82, 300], [0, 0.68, 0.68], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
-  const open = spring({ frame: frame - NEAR_MEET_TIMING.open[0], fps, config: { damping: 28, stiffness: 132, mass: 0.9 } });
-  const openProgress = frame < NEAR_MEET_TIMING.open[0] ? 0 : open;
-  // Capture is rendered uniformly at 1.2× in the display so the real verse
-  // remains legible at 1080p while retaining the notch's recorded proportions.
-  const displayScale = 1.2;
-  const currentWidth = 320 + (680 - 320) * openProgress;
-  const currentHeight = 36 + (180 - 36) * openProgress;
-  const expandedOpacity = interpolate(openProgress, [0.68, 0.98], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
-  const collapsedOpacity = 1 - interpolate(openProgress, [0, 0.54], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const finalLineOpacity = interpolate(frame, [NEAR_MEET_TIMING.walkthrough[0], 790, 900], [0, 1, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
-  const cameraPush = interpolate(laptopSpring, [0, 1], [0.965, 1.015]);
+  const cameraPush = interpolate(laptopSpring, [0, 1], [0.965, 1]) + interpolate(frame, [310, 575], [0, .02], {extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic)});
   const audioBed = (f: number) => interpolate(f, [0, 12, 82, 240, 295, 300, 405, 426, 480, 550, 696, 750, 846, 900], [0.18, 0.30, 0.60, 0.54, 0.33, 0.30, 0.58, 0.58, 0.34, 0.52, 0.48, 0.28, 0.58, 0.52], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
 
   return <div style={{ position: "relative", width: 1920, height: 1080, overflow: "hidden", background: "#070C0D", color: titleMilk }}>
@@ -157,7 +149,7 @@ export const NearMeetReveal: React.FC<NearMeetProps> = ({ narrationEnabled = tru
     </>}
 
     <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 61%, rgba(34,125,88,.15) 0%, rgba(8,22,20,.18) 27%, transparent 64%), linear-gradient(180deg,#080d0f 0%,#0a1012 58%,#080d0e 100%)" }} />
-    <div style={{ position: "absolute", left: 410, top: 214, width: 1100, height: 850, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(51,226,157,.45), rgba(29,139,106,.14) 44%, transparent 72%)", filter: "blur(70px)", opacity: glow, transform: `scale(${interpolate(openProgress, [0, 1], [0.84, 1.13])})` }} />
+    <div style={{ position: "absolute", left: 410, top: 214, width: 1100, height: 850, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(51,226,157,.45), rgba(29,139,106,.14) 44%, transparent 72%)", filter: "blur(70px)", opacity: glow, transform: `scale(${interpolate(frame, [480, 536], [.84, 1.13], {extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.inOut(Easing.cubic)})})` }} />
 
     {/* Real-screen recording fallback: work desktop is recreated until a portal-approved capture is supplied. */}
     <div style={{ position: "absolute", left: 0, top: 0, width: 1920, height: 1080, opacity: screenFade }}>
@@ -177,14 +169,7 @@ export const NearMeetReveal: React.FC<NearMeetProps> = ({ narrationEnabled = tru
             </Sequence>}
           </>}
 
-          {/* Shape progression and delayed content reveal mirror the native notch's spring and mask timing. */}
-          {frame >= NEAR_MEET_TIMING.open[0] && <div style={{ position: "absolute", zIndex: 14, left: 380, top: 32, width: 680, height: 180, clipPath: toPath(notchGeometry(currentWidth, currentHeight).shape), opacity: screenFade, transform: `scale(${displayScale})`, transformOrigin: "center top" }}>
-            <Video src={staticFile("captures/near-notch-expanded-hold.mp4")} muted loop startFrom={0} style={{ position: "absolute", inset: 0, width: 680, height: 180, opacity: expandedOpacity }} />
-            <div style={{ position: "absolute", left: 180, top: 0, width: 320, height: 36, clipPath: toPath(notchGeometry(320, 36).shape), opacity: collapsedOpacity }}>
-              <Img src={staticFile("captures/near-notch-collapsed.png")} style={{ position: "absolute", inset: 0, width: 320, height: 36 }} />
-            </div>
-          </div>}
-
+          {frame >= 480 && <Img src={staticFile(`captures/expansion/${Math.min(56, 2 * Math.floor((frame - 480) / 2))}.png`)} style={{position: "absolute", left: 380, top: 32, width: 680, transform: "scale(1.2)", transformOrigin: "center top", zIndex: 14}} />}
           <div style={{ position: "absolute", right: 24, bottom: 22, zIndex: 15, padding: "9px 13px", borderRadius: 7, background: "rgba(115,70,27,.94)", border: "1px solid rgba(255,220,159,.78)", color: "#fff4dc", fontFamily: "Arial,sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", boxShadow: "0 4px 18px rgba(0,0,0,.24)" }}>
             Temporary work screen · Replace with desktop recording
           </div>

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Audio,
+  Freeze,
   CalculateMetadataFunction,
   Composition,
   Easing,
@@ -171,9 +172,15 @@ const RecordedFeatureCapture: React.FC<{ feature: (typeof FEATURE_CAPTURE_SLOTS)
   const { fps } = useVideoConfig();
   const length = feature.end - feature.start;
   const local = frame;
-  const exit = interpolate(local, [length - 45, length], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
-  const scale = interpolate(local, [0, 48, length - 45, length], [1.015, 1.075, 1.075, 1.02], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
-  const focusY = feature.key === "talk" || feature.key === "voiceMusic" ? "44%" : "50%";
+  const exit = interpolate(local, [85, 110], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
+  const [approach, settle, zoom, controlY, resultY] = {
+    talk: [230, 310, 1.22, 0, 0], chat: [80, 170, 1.16, 60, 20],
+    bible: [100, 240, 1.13, 20, 35], journey: [150, 330, 1.12, 60, 40],
+    notes: [300, 480, 1.18, 55, 35], music: [100, 205, 1.15, 0, 0],
+    church: [140, 270, 1.14, 45, 35], voiceMusic: [110, 225, 1.30, 0, 0],
+  }[feature.key];
+  const scale = interpolate(local, [approach, settle, length - 45, length], [1, zoom, zoom, feature.key === "voiceMusic" ? zoom : 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
+  const focusY = interpolate(local, [settle, settle + 60], [controlY, resultY], {extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic)}) + "%";
   const titleIn = spring({ frame: local - 10, fps, config: { damping: 24, stiffness: 90 } });
   const titleOpacity = interpolate(titleIn, [0, 1], [0, 1]) * Math.min(1, exit);
   const revealTitle = feature.key === "talk" || feature.key === "voiceMusic";
@@ -186,7 +193,7 @@ const RecordedFeatureCapture: React.FC<{ feature: (typeof FEATURE_CAPTURE_SLOTS)
     <div style={{ position: "absolute", inset: 0, opacity: titleOpacity, pointerEvents: "none", background: "linear-gradient(90deg,rgba(4,9,12,.34),transparent 52%)" }} />
     <div style={{ position: "absolute", left: 94, top: 68, opacity: titleOpacity, transform: `translateY(${interpolate(titleIn,[0,1],[16,0])}px)`, color: milk, fontFamily: "Arial,sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: ".13em", textTransform: "uppercase", textShadow: "0 2px 18px rgba(0,0,0,.8)" }}>
       {revealTitle && <span style={{ display: "inline-grid", width: 31, height: 34, placeItems: "center", marginRight: 12, border: "1px solid rgba(239,183,109,.84)", borderBottomWidth: 4, borderRadius: 6, color: "#efb76d", background: "rgba(8,14,19,.62)" }}>N</span>}
-      {feature.title}
+      {revealTitle ? "Hold N to talk" : feature.title}
     </div>
   </div>;
 };
@@ -210,11 +217,11 @@ export const NearFeatureWalkthrough: React.FC<NearFeatureWalkthroughProps> = ({
     {musicEnabled && <Audio src={staticFile("audio/near-feature-walkthrough-music.wav")} volume={musicVolume(frame)} />}
 
     {/* One-frame handoff starts on Scene 2's exact expanded verse frame. */}
-    {frame < 28 && <Sequence durationInFrames={28} freeze={899}>
+    {frame < 28 && <Freeze frame={899}>
       <NearMeetReveal narrationEnabled={false} musicEnabled={false} />
-    </Sequence>}
+    </Freeze>}
 
-    {!activeHasCapture && <div style={{ position: "absolute", inset: 0, opacity: closeFade, background: "radial-gradient(ellipse at 50% 40%, rgba(36,82,80,.24), transparent 62%), linear-gradient(180deg,#0b1218,#090e13 64%,#070b0e)" }}>
+    {!activeHasCapture && active.key !== "talk" && <div style={{ position: "absolute", inset: 0, opacity: closeFade, background: "radial-gradient(ellipse at 50% 40%, rgba(36,82,80,.24), transparent 62%), linear-gradient(180deg,#0b1218,#090e13 64%,#070b0e)" }}>
       <div style={{ position: "absolute", left: "50%", top: "50%", width: 1464, height: 924, padding: 12, borderRadius: 25, boxSizing: "border-box", background: "linear-gradient(135deg,#697278,#20272d 36%,#4b555b 69%,#1d252b)", boxShadow: "0 42px 120px rgba(0,0,0,.72), 0 0 0 1px rgba(216,233,225,.19)", transform: `translate(-50%,-50%) scale(${push})`, transformOrigin: "center center" }}>
         <div style={{ position: "relative", width: 1440, height: 900, overflow: "hidden", borderRadius: 15, background: "#eef1f4" }}>
           <WorkWindow />
@@ -224,13 +231,14 @@ export const NearFeatureWalkthrough: React.FC<NearFeatureWalkthroughProps> = ({
       </div>
     </div>}
 
+    {!activeHasCapture && active.key === "talk" && <Video muted startFrom={180} src={staticFile("captures/scene3_manual_capture/talktonear.webm")} style={{position: "absolute", opacity:closeFade, width: "100%", height: "100%", background: "#080e13", transform: `scale(${interpolate(frame,[90,245],[1,1.22],{extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.inOut(Easing.cubic)})})`, transformOrigin:"50% 0%"}} />}
     {FEATURE_CAPTURE_SLOTS.map((feature) => recordedCaptures[feature.key] ? <Sequence key={`capture-${feature.key}`} from={feature.start} durationInFrames={feature.end - feature.start}>
       <RecordedFeatureCapture feature={feature} />
     </Sequence> : null)}
 
     {!activeHasCapture && frame >= 28 && <FeaturePlaceholder
       title={active.title}
-      prompt={active.prompt}
+      prompt={active.key === "talk" ? "Live listening view · microphone and NEAR reply audio needed" : active.prompt}
       filename={`scene-3/${active.capture}`}
       offset={active.start}
       duration={active.end - active.start}

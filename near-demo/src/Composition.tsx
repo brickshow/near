@@ -94,14 +94,14 @@ const MorningStack: React.FC = () => {
 
 const NearProblemIntro: React.FC<Props> = ({ narrationEnabled = true, musicEnabled = true }) => {
   const frame = useCurrentFrame();
-  const morningFade = 1 - fade(frame, 645, 672);
-  const nightFade = fade(frame, 645, 672) * (1 - fade(frame, 1320, 1350));
+  const morningFade = Number(frame < 660);
+  const nightFade = Number(frame >= 660) * (1 - fade(frame, 1320, 1349));
   const pushMorning = interpolate(frame, [0, 270], [1, 1.075], { extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   const pushNight = interpolate(frame, [660, 930], [1.045, 1.08], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   const laptopDark = fade(frame, 784, 817);
-  const finalFade = fade(frame, 1075, 1135) * (1 - fade(frame, 1320, 1350));
+  const finalFade = fade(frame, 1160, 1200) * (1 - fade(frame, 1320, 1349));
 
-  return <div style={{ width: 1920, height: 1080, overflow: "hidden", background: "#111820", position: "relative" }}>
+  return <div style={{ width: 1920, height: 1080, overflow: "hidden", background: "#050709", position: "relative" }}>
     {narrationEnabled && <>
       <Sequence><Audio src={staticFile("audio/narration-morning.mp3")} /></Sequence>
       <Sequence from={270}><Audio src={staticFile("audio/narration-work.mp3")} /></Sequence>
@@ -119,15 +119,17 @@ const NearProblemIntro: React.FC<Props> = ({ narrationEnabled = true, musicEnabl
     {/* Morning plate: the two image transforms create a restrained foreground/background depth drift. */}
     <div style={{ position: "absolute", inset: -60, opacity: morningFade, transform: `scale(${pushMorning}) translateX(${interpolate(frame, [0, 270], [0, -18], { extrapolateRight: "clamp" })}px)` }}>
       <Img src={staticFile("assets/desk-morning.png")} style={{ position: "absolute", width: "100%", height: "100%", objectFit: "cover", filter: "brightness(.78) saturate(.88)" }} />
+      <Img src={staticFile("assets/desk-morning.png")} style={{ position: "absolute", width: "100%", height: "100%", objectFit: "cover", filter: "brightness(.78) saturate(.88)", maskImage: "linear-gradient(transparent 58%, black 84%)", transform: `scale(${1 + .012 * fade(frame, 0, 270)})`, transformOrigin: "center bottom" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(32,22,13,.45), rgba(25,20,17,.04) 70%), linear-gradient(0deg, rgba(17,18,18,.34), transparent 48%)" }} />
     </div>
-    <MaskedLine text={INTRO_COPY.morning[0]} start={34} end={182} top={170} fontSize={78} />
+    <MaskedLine text={INTRO_COPY.morning[0]} start={34} end={250} top={170} fontSize={78} />
     <MaskedLine text={INTRO_COPY.morning[1]} start={112} end={250} top={270} fontSize={78} />
 
     {/* Work beat overlays remain independent for easy retiming. */}
     <div style={{ position: "absolute", inset: 0, opacity: morningFade }}>
       {INTRO_COPY.notifications.map((text, i) => <Notification key={text} text={text} start={[296, 377, 430][i]} index={i} />)}
     </div>
+    {musicEnabled && [296, 377, 430].map((from, index) => <Sequence key={from} from={from} durationInFrames={26}><Audio src={staticFile("audio/near-notch-pluck.wav")} volume={.09 + index * .018} /></Sequence>)}
     <MorningStack />
 
     {/* Matched late-night plate with the laptop closed beside the Bible. */}

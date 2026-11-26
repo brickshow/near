@@ -12,7 +12,6 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { NearFeatureWalkthrough } from "./NearFeatureWalkthrough";
 
 export type NearClosingProps = {
   narrationEnabled?: boolean;
@@ -101,19 +100,17 @@ export const NearClosing: React.FC<NearClosingProps> = ({ narrationEnabled = tru
     <div style={{ position: "absolute", left: "50%", top: "48%", width: 1100, height: 850, transform: "translate(-50%,-50%)", borderRadius: "50%", background: `radial-gradient(ellipse, rgba(57,216,151,${0.31 * glow}) 0%, rgba(37,134,107,${0.16 * glow}) 42%, transparent 73%)`, filter: "blur(65px)" }} />
 
     {/* Freeze Scene 3's exact final frame for the cut; it fades away during the quiet opening beat. */}
-    {frame < 122 && <Sequence durationInFrames={122} freeze={6149}>
-      <NearFeatureWalkthrough narrationEnabled={false} musicEnabled={false} recordedCaptures={{}} />
-    </Sequence>}
-    <div style={{ position: "absolute", inset: 0, background: "#080D12", opacity: fadeOutShot }} />
+    {frame < 122 && <Img src={staticFile("captures/scene-3/closing-handoff.png")} style={{position:"absolute", inset:0, width:"100%"}} />}
+    <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 48%, #153229, #080D12 69%)", opacity: fadeOutShot }} />
 
     {narrationEnabled && <>
       <Sequence from={120} durationInFrames={300}><Audio src={staticFile("audio/near-closing-01.mp3")} /></Sequence>
       <Sequence from={420} durationInFrames={180}><Audio src={staticFile("audio/near-closing-02.mp3")} /></Sequence>
     </>}
-    {musicEnabled && <Audio src={staticFile("audio/near-meet-music.wav")} volume={musicVolume(frame)} />}
+    {musicEnabled && <Audio src={staticFile("audio/near-meet-music.wav")} volume={musicVolume(frame)} startFrom={300} />}
 
-    <MaskedPhrase text={NEAR_CLOSING_COPY.phrases[0]} start={132} end={258} />
-    <MaskedPhrase text={NEAR_CLOSING_COPY.phrases[1]} start={255} end={408} />
+    <MaskedPhrase text={NEAR_CLOSING_COPY.phrases[0]} start={178} end={234} />
+    <MaskedPhrase text={NEAR_CLOSING_COPY.phrases[1]} start={230} end={408} />
 
     <EndCard />
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at center, transparent 44%, rgba(0,0,0,.28) 100%)" }} />
