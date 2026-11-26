@@ -2,7 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "notes-window",
   "description": "Notes and local calendar",
-  "windows": ["near-notes", "near-church"],
+  "windows": [
+    "near-notes",
+    "near-church"
+  ],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
@@ -18,7 +21,6 @@
     "core:window:allow-set-shadow",
     "core:window:allow-set-resizable",
     "core:window:allow-set-always-on-top",
-    "sql:default",
-    "sql:allow-execute"
+    "sql:allow-load"
   ]
 }

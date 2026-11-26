@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "bible-window",
   "description": "Offline Bible reader",
-  "windows": ["near-bible"],
+  "windows": [
+    "near-bible"
+  ],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
@@ -18,6 +20,6 @@
     "core:window:allow-set-shadow",
     "core:window:allow-set-resizable",
     "core:window:allow-set-always-on-top",
-    "sql:default"
+    "sql:allow-load"
   ]
 }

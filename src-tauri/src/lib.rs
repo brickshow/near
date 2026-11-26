@@ -1,3 +1,5 @@
+mod access;
+mod access_data;
 mod media;
 mod music;
 mod voice_models;
@@ -119,6 +121,7 @@ async fn download_whisper_model_inner(app: tauri::AppHandle, path: std::path::Pa
     let mut downloaded = 0u64;
     let mut last_event = Instant::now();
     while let Some(chunk) = response.chunk().await.map_err(|e| format!("Model download interrupted: {e}"))? {
+        access::require()?;
         if WHISPER_DOWNLOAD_CANCEL.load(Ordering::Relaxed) {
             drop(file);
             let _ = std::fs::remove_file(&temporary);
@@ -925,44 +928,56 @@ fn cached_chat_models(subject: &str, token: &str) -> Result<ModelChoices, String
     Ok(choices)
 }
 
+// Dropping a reqwest async future/response cancels the local request, including
+// a silent stream waiting for its next byte. No new provider work starts locked.
+async fn with_access<F: std::future::Future>(future: F) -> Result<F::Output, String> {
+    access::require()?;
+    tokio::pin!(future);
+    let mut interval = tokio::time::interval(Duration::from_millis(100));
+    loop {
+        tokio::select! {
+            result = &mut future => { access::require()?; return Ok(result); },
+            _ = interval.tick() => { access::require()?; }
+        }
+    }
+}
 #[tauri::command]
 async fn chatgpt_reply(app: tauri::AppHandle, history: Vec<ChatTurn>, request_id: String, mode: Option<ReplyMode>) -> Result<String, String> {
     if history.is_empty() { return Err("Write a message first.".into()); }
-    tauri::async_runtime::spawn_blocking(move || {
-        reply_from_chatgpt(history, mode.unwrap_or_default(), |delta| {
-            let _ = app.emit("near://chatgpt-delta", ChatGptDelta { request_id: request_id.clone(), delta: delta.to_string() });
-        })
-    }).await.map_err(|e| e.to_string())?
+    reply_from_chatgpt_async(history, mode.unwrap_or_default(), |delta| {
+        let _ = app.emit("near://chatgpt-delta", ChatGptDelta { request_id: request_id.clone(), delta: delta.to_string() });
+    }).await
 }
-
-fn reply_from_chatgpt(history: Vec<ChatTurn>, mode: ReplyMode, mut on_delta: impl FnMut(&str)) -> Result<String, String> {
-        let (metadata, access_token) = refresh_credentials()?;
-        let client = oauth_http()?;
-        let model = cached_chat_models(&metadata.client_id, &access_token)?.for_mode(mode);
-        let mut input = Vec::new();
-        input.extend(history.iter().filter(|turn| turn.role == "user" || turn.role == "assistant")
-            .map(|turn| serde_json::json!({"role":turn.role,"content":turn.content})));
-        let instructions = format!("{NEAR_COMPANION_INSTRUCTIONS}\nRespond directly to the user's latest message. Acknowledge feelings only when the user expresses them. Do not substitute generic reassurance such as 'I'm here with you' for answering a question or addressing a request. Do not repeat greetings or introductions on each turn. NEAR handles playback commands separately. Answer the current topic directly even if an earlier turn mentioned music. If a playback request reaches you, explain that the user can say Play music or Play followed by a song title. Never claim you started playback.");
-        let mut payload = serde_json::json!({"model":model.slug,"instructions":instructions,"input":input,"store":false,"stream":true});
-        if let Some(effort) = model.reasoning_effort {
-            payload["reasoning"] = serde_json::json!({"effort":effort});
-        }
-        let response = client.post(format!("{RESOURCE}/responses").as_str()).bearer_auth(&access_token)
-            .json(&payload)
-            .send().map_err(|e| format!("Could not reach ChatGPT: {e}"))?;
-        if !response.status().is_success() {
-            let status = response.status();
-            let detail = response.text().unwrap_or_default();
-            return Err(format!("ChatGPT request failed ({status}): {detail}"));
-        }
-        let mut reader = BufReader::new(response);
-        let mut line = String::new();
-        let mut text = String::new();
-        let mut completed = false;
-        loop {
-            line.clear();
-            let bytes = reader.read_line(&mut line).map_err(|e| format!("Could not read ChatGPT response: {e}"))?;
-            if bytes == 0 { break; }
+async fn reply_from_chatgpt_async(history: Vec<ChatTurn>, mode: ReplyMode, mut on_delta: impl FnMut(&str)) -> Result<String, String> {
+    access::require()?;
+    let (access_token, model) = tauri::async_runtime::spawn_blocking(move || {
+        access::require()?;
+        let (metadata, token) = refresh_credentials()?;
+        let model = cached_chat_models(&metadata.client_id, &token)?.for_mode(mode);
+        Ok::<_, String>((token, model))
+    }).await.map_err(|e| e.to_string())??;
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
+    let input: Vec<_> = history.iter().filter(|turn| turn.role == "user" || turn.role == "assistant")
+        .map(|turn| serde_json::json!({"role":turn.role,"content":turn.content})).collect();
+    let instructions = format!("{NEAR_COMPANION_INSTRUCTIONS}\nRespond directly to the user's latest message. Acknowledge feelings only when the user expresses them. Do not substitute generic reassurance such as 'I'm here with you' for answering a question or addressing a request. Do not repeat greetings or introductions on each turn. NEAR handles playback commands separately. Answer the current topic directly even if an earlier turn mentioned music. If a playback request reaches you, explain that the user can say Play music or Play followed by a song title. Never claim you started playback.");
+    let mut payload = serde_json::json!({"model":model.slug,"instructions":instructions,"input":input,"store":false,"stream":true});
+    if let Some(effort) = model.reasoning_effort { payload["reasoning"] = serde_json::json!({"effort":effort}); }
+    let mut response = with_access(client.post(format!("{RESOURCE}/responses")).bearer_auth(&access_token).json(&payload).send())
+        .await?.map_err(|e| format!("Could not reach ChatGPT: {e}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        let detail = with_access(response.text()).await?.unwrap_or_default();
+        return Err(format!("ChatGPT request failed ({status}): {detail}"));
+    }
+    let mut pending = Vec::new();
+    let mut text = String::new();
+    let mut completed = false;
+    'stream: while let Some(chunk) = with_access(response.chunk()).await?.map_err(|e| format!("Could not read ChatGPT response: {e}"))? {
+        pending.extend_from_slice(&chunk);
+        if pending.len() > 2_000_000 { return Err("ChatGPT stream event exceeded the size limit.".into()); }
+        while let Some(end) = pending.iter().position(|b| *b == b'\n') {
+            let raw: Vec<u8> = pending.drain(..=end).collect();
+            let line = std::str::from_utf8(&raw).map_err(|e| e.to_string())?;
             let Some(data) = line.trim_end().strip_prefix("data: ") else { continue; };
             if data == "[DONE]" { continue; }
             let event: serde_json::Value = serde_json::from_str(data).map_err(|e| format!("Invalid ChatGPT stream event: {e}"))?;
@@ -971,14 +986,19 @@ fn reply_from_chatgpt(history: Vec<ChatTurn>, mode: ReplyMode, mut on_delta: imp
                     text.push_str(delta);
                     on_delta(delta);
                 },
-                "response.completed" => { completed = true; break; },
+                "response.completed" => { completed = true; break 'stream; },
                 "response.failed" => return Err(format!("ChatGPT could not answer: {}", event["response"]["error"]["message"].as_str().unwrap_or("request failed"))),
                 "response.incomplete" => return Err("ChatGPT response was incomplete.".into()),
                 _ => {}
             }
         }
-        if !completed { return Err("ChatGPT stream ended before the response completed.".into()); }
-        if text.is_empty() { Err("ChatGPT returned no text.".into()) } else { Ok(text) }
+    }
+    if !completed { return Err("ChatGPT stream ended before the response completed.".into()); }
+    if text.is_empty() { Err("ChatGPT returned no text.".into()) } else { Ok(text) }
+}
+#[cfg(test)]
+fn reply_from_chatgpt(history: Vec<ChatTurn>, mode: ReplyMode, on_delta: impl FnMut(&str)) -> Result<String, String> {
+    tauri::async_runtime::block_on(reply_from_chatgpt_async(history, mode, on_delta))
 }
 
 #[cfg(test)]
@@ -1208,12 +1228,20 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::Builder::new().app_name("NEAR").build())
         .on_permission_request(|webview, permission| match permission {
-            PermissionKind::Microphone if matches!(webview.label(), "main" | "near-notes") => PermissionResponse::Allow,
+            PermissionKind::Microphone if access::require().is_ok() && matches!(webview.label(), "main" | "near-notes") => PermissionResponse::Allow,
             _ => PermissionResponse::Default,
         })
         .setup(|app| {
+            access::start(app.handle().clone());
             let global_shortcut = tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
                     if event.state == ShortcutState::Pressed
@@ -1306,7 +1334,14 @@ pub fn run() {
                 .add_migrations("sqlite:near.db", migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, chatgpt_profiles, chatgpt_select_profile, chatgpt_disconnect, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible])
+        .invoke_handler(|invoke| {
+            if !access::public_command(invoke.message.command()) && access::require().is_err() {
+                invoke.resolver.reject("NEAR access is locked.");
+                return true;
+            }
+            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![access::access_status, access::access_refresh, access::access_open_landing, access_data::access_export_data, access_data::access_delete_data, access_data::db_select, access_data::db_execute, media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, chatgpt_profiles, chatgpt_select_profile, chatgpt_disconnect, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible];
+            handler(invoke)
+        })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, event| {

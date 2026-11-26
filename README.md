@@ -206,3 +206,7 @@ Notes opens to the saved-note list by default. Add note opens a separate editor 
 Dictation lifecycle checks: `node --test scripts/note-dictation.test.mjs scripts/notes.test.mjs`.
 
 Notes dictation now lets you choose an input microphone (remembered on this device). Recognizable music/silence captions are excluded from dictated notes, with an explanatory message when only background sound is recognized; sentences discussing music are preserved. This does not recover speech the model failed to hear. Choose the actual microphone rather than a loopback input if your transcript only reports background music.
+
+## Temporary Hackathon Preview
+
+The public hackathon release has a full-featured 72-hour preview enforced by Rust and a Cloudflare Worker/D1 activation service. Commercial NEAR licenses ($10, planned through Polar) are coming soon. See [deployment, configuration, privacy limits, and release verification](docs/hackathon-preview.md) before building or distributing installers.

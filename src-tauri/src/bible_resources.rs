@@ -90,6 +90,7 @@ pub async fn download_near_bible(app: tauri::AppHandle, version_id: String) -> R
             let mut buffer = [0u8; 65536];
             let mut last_event = Instant::now();
             loop {
+                crate::access::require()?;
                 let count = response.read(&mut buffer).map_err(|e| format!("ASV download interrupted. Try again: {e}"))?;
                 if count == 0 { break; }
                 progress.downloaded_bytes += count as u64;

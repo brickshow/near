@@ -1,3 +1,4 @@
+import { AccessGate } from "./components/AccessGate";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
@@ -22,6 +23,6 @@ const HomePrototype = import.meta.env.DEV && new URLSearchParams(location.search
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    {HomePrototype ? <React.Suspense fallback={null}><HomePrototype /></React.Suspense> : <App />}
+    {HomePrototype ? <React.Suspense fallback={null}><HomePrototype /></React.Suspense> : <AccessGate><App /></AccessGate>}
   </React.StrictMode>,
 );

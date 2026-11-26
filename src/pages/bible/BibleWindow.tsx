@@ -7,7 +7,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emitTo, listen } from "@tauri-apps/api/event";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import Database from "@tauri-apps/plugin-sql";
+import Database from "../../lib/accessDatabase";
 import "./BibleWindow.css";
 
 const names = BIBLE_BOOK_NAMES;

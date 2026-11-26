@@ -1,3 +1,4 @@
+import { PreviewDuration } from "../../components/AccessGate";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -143,7 +144,7 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
   };
   return <main className="notes-window settings-window">
     <header className="notes-header settings-header">
-      <div><h1>Settings</h1><p>Make NEAR comfortable for you.</p></div>
+      <div><h1>Settings</h1><p>Make NEAR comfortable for you.</p><PreviewDuration /></div>
       <button className="settings-close" aria-label="Close settings" onClick={() => void getCurrentWindow().close()}>&times;</button>
     </header>
     <section className="settings-section" aria-labelledby="connection-settings-title">

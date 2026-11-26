@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
-import Database from "@tauri-apps/plugin-sql";
+import Database from "./accessDatabase";
 import { BIBLE_BOOK_NAMES, type BiblePassage } from "./bibleReferences";
 
 export type ScriptureReference = BiblePassage & { endVerse: number; translation: "ASV"; label: string };
