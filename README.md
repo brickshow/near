@@ -1,6 +1,90 @@
-# Tauri + React + Typescript
+<p align="center">
+  <img src="near-demo/public/assets/near-appicon.png" alt="NEAR app icon" width="112" />
+</p>
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+<h1 align="center">NEAR</h1>
+
+<p align="center"><strong>A calm, voice-first desktop companion for faith, focus, and everyday tasks.</strong></p>
+
+<p align="center">
+  <img src="near-demo/public/captures/near-notch-expanded.png" alt="NEAR expanded desktop interface with daily scripture, voice controls, and navigation for Bible, Journey, Notes, Music, and Church" width="720" />
+</p>
+
+<p align="center"><em>Open the compact top-of-screen interface to talk with NEAR, read scripture, and reach your daily tools.</em></p>
+
+NEAR is a cross-platform desktop app built with **Tauri 2, React, TypeScript, and Rust**. It combines an always-available desktop notch with voice interaction, a local Bible reader, personal notes, reminders, music controls, and a faith journey. Chat replies use a connected assistant account; voice transcription runs on-device.
+
+## What NEAR includes
+
+- **Voice and chat** — talk to NEAR with local Whisper transcription, review transcripts, and get streamed spoken replies. ChatGPT is supported, with Claude Code and a local model option in the agent selector.
+- **Daily home** — see a daily verse and open voice, chat, and Faith Journey actions from the compact Home surface.
+- **Bible reader** — read the verified, offline ASV download, navigate all 66 books and 1,189 chapters, use read-aloud, and save reading progress.
+- **Faith Journey** — keep personal faith goals and receive gentle reminders.
+- **Personal notes** — create and search notes, link Bible passages, and dictate into notes with local speech recognition.
+- **Church calendar** — manage events and receive in-app reminders while NEAR is running.
+- **Music** — control the active Windows media session, synchronize imported LRC lyrics, or ask NEAR to find a track on YouTube.
+- **Settings and setup** — configure the assistant, voice, Bible download, appearance, and reminder preferences.
+- **Desktop integration** — use a global shortcut, system tray, docked companion windows, and monitor-aware positioning where supported.
+- **Temporary preview** — the public hackathon build includes a 72-hour offline preview; see the [preview guide](docs/hackathon-preview.md).
+
+## Quick start
+
+Install Node.js, Rust, and the platform's native build tools, then install the locked dependencies and start the Tauri app:
+
+```sh
+npm ci
+npm run tauri dev
+```
+
+Use the platform setup instructions below before the first build. Windows needs the Whisper CMake/Clang setup; Ubuntu 24.04 can use `npm run setup:linux`; macOS needs Xcode Command Line Tools, CMake, and LLVM. See [Windows development](#windows-development), [Linux development and builds](#linux-development-and-builds), and [macOS development and builds](#macos-development-and-builds).
+
+## Project map
+
+| Path | Purpose |
+| --- | --- |
+| `src/` | React interface, pages, shared components, and TypeScript application logic |
+| `src-tauri/` | Rust desktop commands, platform integration, SQLite migrations, and Tauri configuration |
+| `public/` | Frontend static assets, audio worklet, app icon, and faith imagery |
+| `scripts/` | Setup helpers, performance tools, and focused Node regression checks |
+| `services/preview/` | Cloudflare Worker and migrations for the temporary preview service |
+| `landing/` | Separate Vite-based NEAR landing site |
+| `near-demo/` | Remotion promotional video project and its source assets/captures |
+| `docs/` | Product and release documentation |
+| `THIRD_PARTY_BIBLES.md`, `THIRD_PARTY_VOICES.md` | Bible and voice attribution, source, and version notes |
+
+## Development commands
+
+```sh
+npm ci                 # install locked dependencies
+npm run dev            # run the web UI in Vite
+npm run tauri dev      # run the desktop application
+npm run build          # type-check and build the web assets
+npm run preview        # serve the production web build locally
+npm run setup:linux    # install Ubuntu 24.04 native build prerequisites
+npm run setup:windows  # install pinned Windows Whisper build tools
+```
+
+Targeted regression checks use Node's built-in test runner, for example:
+
+```sh
+node --test scripts/faith-journey.test.mjs
+node --test scripts/bible-reading.test.mjs scripts/voice-playback.test.mjs
+```
+
+The `scripts/` directory contains focused checks for calendar reminders, notes and dictation, faith journeys, Bible reading, music commands and routing, voice playback, timed lyrics, chat streaming, window docking, and audio capture. Some Rust benchmarks and live media checks are opt-in and require the relevant account, device, or installed model; their commands and caveats are documented below.
+
+## Privacy and optional downloads
+
+- Microphone transcription uses a local Whisper model. Audio is not uploaded or saved by NEAR; sending a reviewed transcript to an assistant requires an internet connection.
+- The optional ASV SQLite Bible and Bryce Piper voice are downloaded only if selected and stored in the user's app data directory. Neither is bundled with the installer.
+- Notes, calendar events, reminders, and reading progress are stored locally in SQLite. Bible content is read from the verified database and is not generated or paraphrased.
+- Church reminders require NEAR to be running. They are not an operating-system background service and cannot fire after NEAR is quit or while the computer sleeps.
+- YouTube playback opens in the default browser. Browser autoplay settings and the selected search result remain under browser and YouTube control.
+
+---
+
+# Platform setup and feature details
+
 
 ## Windows development
 
@@ -157,21 +241,21 @@ download it later or skip it during setup. The ASV is public domain. See
 
 ## Offline Bible reader
 
-The Home ? Bible button opens a separate reader docked to the right edge of the current monitor's work area. The reader uses the verified downloaded ASV SQLite database under the app data directory; it never generates or paraphrases verse text. If the download is missing, the reader offers the existing verified ASV download.
+The Home > Bible button opens a separate reader docked to the right edge of the current monitor's work area. The reader uses the verified downloaded ASV SQLite database under the app data directory; it never generates or paraphrases verse text. If the download is missing, the reader offers the existing verified ASV download.
 
 Select an Old or New Testament book and chapter, use Previous/Next to move across chapter and book boundaries, or adjust the reading text size. Escape or the close button dismisses the reader. Entrance, exit, and chapter transitions respect reduced-motion settings.
 
 Validation: all 66 book IDs and 1,189 chapters in the installed source were checked; every chapter loads nonempty verse text with unique ordered verse numbers. The database integrity check, TypeScript production build, and native `cargo check --lib` passed.
 
-The Bible reader shares NEAR's dark navy, cyan, and mint styling. Read chapter uses the selected NEAR voice (downloaded Piper or the system voice fallback), highlights the current verse, and supports 0.75x?1.5x playback. Click a verse number to read from that verse. Stop, chapter navigation, and closing the window cancel playback; stale callbacks cannot restart it. Playback errors are shown separately from Bible loading errors.
+The Bible reader shares NEAR's dark navy, cyan, and mint styling. Read chapter uses the selected NEAR voice (downloaded Piper or the system voice fallback), highlights the current verse, and supports playback speeds from 0.75× to 1.5×. Click a verse number to read from that verse. Stop, chapter navigation, and closing the window cancel playback; stale callbacks cannot restart it. Playback errors are shown separately from Bible loading errors.
 
 Read-aloud regression checks: `node --test scripts/bible-reading.test.mjs scripts/voice-playback.test.mjs`.
 
-Reading progress is saved locally after each verse finishes playing. Reopening the reader restores the saved book/chapter and scrolls to the persistent ?Last completed? highlight. Continue reading starts with the next verse in that chapter; use Next after a completed chapter. Interrupted verses are not marked complete. The original ASV database is never modified.
+Reading progress is saved locally after each verse finishes playing. Reopening the reader restores the saved book/chapter and scrolls to the persistent “Last completed” highlight. Continue reading starts with the next verse in that chapter; use Next after a completed chapter. Interrupted verses are not marked complete. The original ASV database is never modified.
 
 ## Voice music commands
 
-Say ?Play me a music? or ?Patukar og kanta?, then hold N again and say the song title (and artist). NEAR asks for the title, searches YouTube, and opens the first video result in the default browser with autoplay requested. Direct requests such as ?Play Amazing Grace? also work. Say ?cancel? or ?ayaw na? to cancel a pending title request. The previous recording transcript is cleared after a successful turn so follow-up titles stay separate.
+Say “Play me a music” or “Patukar og kanta”, then hold N again and say the song title (and artist). NEAR asks for the title, searches YouTube, and opens the first video result in the default browser with autoplay requested. Direct requests such as “Play Amazing Grace” also work. Say “cancel” or “ayaw na” to cancel a pending title request. The previous recording transcript is cleared after a successful turn so follow-up titles stay separate.
 
 YouTube search uses its public results page; consent pages or layout changes fall back to opening the search results with an honest spoken explanation. Browser autoplay restrictions can require clicking Play. NEAR cannot confirm playback in an external browser or guarantee that the first result is the intended recording. No browser security settings are changed.
 
