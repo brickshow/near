@@ -3,6 +3,7 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 
 fn parameters(sample_count: usize) -> FullParams<'static, 'static> {
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+    params.set_abort_callback_safe(|| crate::access::require().is_err());
     params.set_language(None);
     params.set_n_threads(4);
     // Live capture sends at most two seconds. A 512-frame encoder context

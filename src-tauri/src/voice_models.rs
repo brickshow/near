@@ -186,6 +186,7 @@ fn download_file(
     let mut count = 0u64;
     let mut last_event = Instant::now();
     loop {
+        crate::access::require()?;
         let read = response
             .read(&mut buffer)
             .map_err(|e| format!("Download interrupted. Try again: {e}"))?;
@@ -430,6 +431,7 @@ impl PiperWorker {
             .map_err(|e| format!("Could not send text to the local voice: {e}"))?;
         let deadline = Instant::now() + Duration::from_secs(120);
         let reply = loop {
+            crate::access::require()?;
             if SPEECH_SHUTTING_DOWN.load(Ordering::Relaxed) {
                 return Err("NEAR is closing.".into());
             }
@@ -446,6 +448,7 @@ impl PiperWorker {
         // for a complete RIFF payload rather than ever returning a partial WAV.
         let deadline = Instant::now() + Duration::from_millis(250);
         loop {
+            crate::access::require()?;
             if let Ok(metadata) = fs::metadata(&output) {
                 if metadata.len() > 32_000_000 {
                     return Err("The local voice returned oversized audio.".into());
@@ -474,6 +477,7 @@ impl Drop for PiperWorker {
 }
 
 fn prepared_worker<'a>(slot: &'a mut Option<PiperWorker>, root: &Path, voice: &VoiceSpec) -> Result<&'a mut PiperWorker, String> {
+    crate::access::require()?;
     if SPEECH_SHUTTING_DOWN.load(Ordering::Relaxed) {
         return Err("NEAR is closing.".into());
     }
@@ -709,4 +713,9 @@ mod tests {
             assert_eq!(reused.downloaded_bytes, 0);
         }
     }
+}
+
+// Access pauses must allow a later successful verification to prepare a new worker.
+pub fn stop_preview_voice() {
+    if let Ok(mut worker) = SPEECH_WORKER.lock() { *worker = None; }
 }

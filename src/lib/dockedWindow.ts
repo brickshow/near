@@ -1,10 +1,17 @@
-import { isTauri } from "@tauri-apps/api/core";
-import { currentMonitor, LogicalPosition, LogicalSize } from "@tauri-apps/api/window";
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import { primaryMonitor, LogicalPosition, LogicalSize } from "@tauri-apps/api/window";
 import { getAllWebviewWindows, WebviewWindow } from "@tauri-apps/api/webviewWindow";
+
+type MonitorInfo = {
+  scaleFactor: number;
+  workArea: { position: { x: number; y: number }; size: { width: number; height: number } };
+};
 
 export async function openDockedWindow(kind: "bible" | "notes" | "church" | "settings" | "faith", onWindowError?: (message: string) => void, query = ""): Promise<boolean> {
   if (!isTauri()) { const width = 460; const height = kind === "faith" ? Math.min(screen.availHeight, 1536) : 800; window.open(`/?window=${kind}${query}`, "near-panel", `popup,width=${width},height=${height}`); return false; }
-  const monitor = await currentMonitor();
+  // Anchor panels to the display containing NEAR's main notch. The primary
+  // display may differ, and currentMonitor() changes with the calling panel.
+  const monitor = await invoke<MonitorInfo | null>("get_main_monitor").catch(() => primaryMonitor());
   const scale = monitor?.scaleFactor ?? 1;
   const area = monitor?.workArea;
   const preferredWidth = 460;
@@ -21,9 +28,13 @@ export async function openDockedWindow(kind: "bible" | "notes" | "church" | "set
     await existing.setShadow(false);
     await existing.setResizable(false);
     await existing.setAlwaysOnTop(true);
+    // Linux window managers may ignore configure requests for hidden windows.
+    // Show the retained panel first, then move it to the chosen display edge.
+    await existing.show();
+    await new Promise(resolve => window.setTimeout(resolve, 100));
     await existing.setSize(new LogicalSize(width, height));
     await existing.setPosition(new LogicalPosition(x, y));
-    await existing.show(); await existing.setFocus(); window.setTimeout(() => { void hideOtherPanels(); }, 120); return true;
+    await existing.setFocus(); window.setTimeout(() => { void hideOtherPanels(); }, 120); return true;
   }
   const title = { bible: "Holy Bible", notes: "Notes", church: "Church Calendar", settings: "Settings", faith: "Faith Journey" }[kind];
   const panel = new WebviewWindow(`near-${kind}`, {

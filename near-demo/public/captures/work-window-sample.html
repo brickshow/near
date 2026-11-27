@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workday — Sample workspace</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #243044; background: #edf1f5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #edf1f5; }
+    .top { height: 76px; display:flex; align-items:center; gap:42px; padding:0 58px; color:#f8fafc; background:#202d40; }
+    .brand { font-size:24px; font-weight:750; letter-spacing:-.04em; }
+    .search { flex:1; max-width:510px; background:#344359; border-radius:9px; padding:13px 17px; color:#bec8d4; font-size:14px; }
+    .user { margin-left:auto; font-size:14px; color:#e8edf2; }
+    main { width:1200px; margin:54px auto; }
+    .eyebrow { font-size:12px; letter-spacing:.12em; color:#76849a; font-weight:700; text-transform:uppercase; }
+    h1 { font-size:34px; letter-spacing:-.04em; margin:10px 0 28px; font-weight:640; }
+    .grid { display:grid; grid-template-columns: 1.18fr .82fr; gap:22px; }
+    .card { background:#fff; border:1px solid #dbe1e8; border-radius:14px; padding:26px 28px; box-shadow:0 10px 30px #1e293b0b; }
+    h2 { margin:0 0 18px; font-size:17px; letter-spacing:-.02em; }
+    .event { display:flex; gap:16px; padding:16px 0; border-top:1px solid #edf0f3; }
+    .time { color:#63718a; font-variant-numeric:tabular-nums; width:64px; font-size:13px; padding-top:2px; }
+    .event strong { display:block; font-size:15px; font-weight:620; }
+    .event small { display:block; color:#7a8798; margin-top:5px; font-size:13px; }
+    .mail { display:grid; grid-template-columns:32px 1fr; gap:10px; padding:16px 0; border-top:1px solid #edf0f3; }
+    .avatar { width:28px; height:28px; border-radius:50%; background:#dce7f2; color:#4b6687; display:grid; place-items:center; font-size:11px; font-weight:700; }
+    .mail strong { font-size:14px; font-weight:620; }
+    .mail p { margin:5px 0 0; color:#69778a; font-size:13px; }
+    .doc { margin-top:22px; color:#526076; font-size:14px; line-height:1.8; }
+    .chip { display:inline-flex; padding:6px 10px; border-radius:100px; color:#3c6d60; background:#e8f2ed; font-size:12px; font-weight:650; }
+  </style>
+</head>
+<body>
+  <header class="top"><div class="brand">northstar</div><div class="search">⌕ &nbsp; Search your workspace</div><div class="user">Thursday, November 26 &nbsp; · &nbsp; Jordan Lee</div></header>
+  <main>
+    <div class="eyebrow">Thursday · Focus day</div><h1>Good morning, Jordan</h1>
+    <div class="grid">
+      <section class="card"><h2>Today’s schedule <span class="chip">3 events</span></h2>
+        <div class="event"><div class="time">9:30 AM</div><div><strong>Weekly product check-in</strong><small>Design team · 30 min · Meet</small></div></div>
+        <div class="event"><div class="time">11:00 AM</div><div><strong>Review launch notes</strong><small>Project NEAR · Draft due today</small></div></div>
+        <div class="event"><div class="time">1:30 PM</div><div><strong>Planning and priorities</strong><small>Studio room · 45 min</small></div></div>
+        <div class="doc"><strong>Current focus</strong><br>Refine the demo flow, prepare a clear handoff, and send the updated notes before lunch.</div>
+      </section>
+      <section class="card"><h2>Recent messages</h2>
+        <div class="mail"><div class="avatar">AM</div><div><strong>Alex Morgan</strong><p>Thanks for sharing the outline. I’ll review the latest draft this morning.</p></div></div>
+        <div class="mail"><div class="avatar">SK</div><div><strong>Sam Kim</strong><p>Could we move the check-in to 9:30? I added the design notes.</p></div></div>
+        <div class="mail"><div class="avatar">JT</div><div><strong>Jamie Taylor</strong><p>The updated assets are ready when you have a moment.</p></div></div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

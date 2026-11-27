@@ -1,0 +1,14 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+build
+
+# Raw recordings and local render intermediates stay on the editing machine.
+screenrecord/
+public/captures/scene-3/*.partial.mp4
+scripts/__pycache__/

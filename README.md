@@ -18,6 +18,37 @@ It does not change the system PATH. Python and these tools are build dependencie
 users of the compiled app do not need them. Do not set
 `WHISPER_DONT_GENERATE_BINDINGS`: the bundled bindings are not suitable for Windows.
 
+## Linux development and builds
+
+On Ubuntu 24.04, install Tauri's native libraries plus the CMake and Clang tools
+used to compile the local Whisper engine. This helper also installs Rust through
+rustup if it is missing; `sudo` may prompt for your password:
+
+```sh
+npm run setup:linux
+```
+
+Install Node.js, then install the locked JavaScript packages before starting the
+desktop app:
+
+```sh
+npm ci
+npm run tauri dev
+```
+
+Create a Debian package on Linux with:
+
+```sh
+npm run tauri -- build --bundles deb
+```
+
+Build the package on the Linux distribution you intend to support. Native
+WebKitGTK and system libraries are linked into the app. When started in a
+Wayland session with XWayland available, NEAR selects its X11 backend so it can
+place the notch at the top center and register `Ctrl+Shift+Space`. If XWayland
+is unavailable, the desktop compositor controls window placement and the tray
+icon remains the restore path.
+
 ## macOS development and builds
 
 NEAR supports macOS on Apple Silicon and Intel. Install Xcode Command Line Tools,
@@ -175,3 +206,7 @@ Notes opens to the saved-note list by default. Add note opens a separate editor 
 Dictation lifecycle checks: `node --test scripts/note-dictation.test.mjs scripts/notes.test.mjs`.
 
 Notes dictation now lets you choose an input microphone (remembered on this device). Recognizable music/silence captions are excluded from dictated notes, with an explanatory message when only background sound is recognized; sentences discussing music are preserved. This does not recover speech the model failed to hear. Choose the actual microphone rather than a loopback input if your transcript only reports background music.
+
+## Temporary Hackathon Preview
+
+The public hackathon release includes a full-featured 72-hour preview that starts automatically and works offline. NEAR keeps the preview dates in your OS credential store and uses your device clock to track expiration. Commercial NEAR licenses ($10, planned through Polar) are coming soon. See the [preview and release guide](docs/hackathon-preview.md).

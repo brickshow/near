@@ -1,3 +1,4 @@
+import { PreviewDuration } from "../../components/AccessGate";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -12,16 +13,19 @@ import { getTheme, MOTION_KEY, setReducedMotion, setTheme } from "../../lib/appe
 import packageInfo from "../../../package.json";
 import { loadCollapseDelaySeconds, loadMouseControl, loadNotchAutoHideSeconds, saveCollapseDelaySeconds, saveMouseControl, saveNotchAutoHideSeconds } from "../../lib/notchPreferences";
 import { loadNoteMicrophone, saveNoteMicrophone } from "../../lib/notePreferences";
+import { friendlyChatGptError } from "../../lib/chatgptErrors";
 import "./SettingsPage.css";
 
 type Props = { voiceName: string; onVoiceChange: (voiceName: string) => void };
 type ChatGptStatus = { connected: boolean; email: string | null; plan_usage_enabled: boolean; message: string };
+type ChatGptProfile = { clientId: string; email: string | null; active: boolean };
 
 export function SettingsPage({ voiceName, onVoiceChange }: Props) {
   const [preferences, setPreferences] = useState(loadReminderPreferences);
   const [theme, updateTheme] = useState(getTheme);
   const [reducedMotion, updateReducedMotion] = useState(() => localStorage.getItem(MOTION_KEY) === "true");
   const [connection, setConnection] = useState<ChatGptStatus | null>(null);
+  const [profiles, setProfiles] = useState<ChatGptProfile[]>([]);
   const [connectionError, setConnectionError] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [version, setVersion] = useState(packageInfo.version);
@@ -37,7 +41,12 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
   const update = (change: Partial<typeof preferences>) => setPreferences(current => saveReminderPreferences({ ...current, ...change }));
   const refreshConnection = useCallback(async () => {
     try {
-      setConnection(await invoke<ChatGptStatus>("chatgpt_status"));
+      const [status, savedProfiles] = await Promise.all([
+        invoke<ChatGptStatus>("chatgpt_status"),
+        invoke<ChatGptProfile[]>("chatgpt_profiles"),
+      ]);
+      setConnection(status);
+      setProfiles(savedProfiles);
       setConnectionError("");
     } catch (error) {
       setConnectionError(`Could not check ChatGPT connection: ${String(error)}`);
@@ -47,6 +56,8 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     if (!isTauri()) return;
     let active = true;
     let stopListening: (() => void) | undefined;
+    let stopAuthError: (() => void) | undefined;
+    let stopAuthRetry: (() => void) | undefined;
     void refreshConnection();
     void invoke("set_notch_mouse_control", { enabled: loadMouseControl() }).catch(error => setMouseControlError(String(error)));
     void invoke("set_notch_auto_hide_seconds", { seconds: loadNotchAutoHideSeconds() }).catch(error => setMouseControlError(String(error)));
@@ -55,10 +66,16 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     void listen("near://chatgpt-auth-complete", () => void refreshConnection())
       .then(stop => { if (active) stopListening = stop; else stop(); })
       .catch(() => {});
+    void listen<string>("near://chatgpt-auth-error", ({ payload }) => setConnectionError(friendlyChatGptError(payload)))
+      .then(stop => { if (active) stopAuthError = stop; else stop(); }).catch(() => {});
+    void listen<{ diagnostic: string }>("near://chatgpt-auth-retry", ({ payload }) => setConnectionError(`${friendlyChatGptError(payload.diagnostic)} A fresh sign-in is opening.`))
+      .then(stop => { if (active) stopAuthRetry = stop; else stop(); }).catch(() => {});
     window.addEventListener("focus", refreshConnection);
     return () => {
       active = false;
       stopListening?.();
+      stopAuthError?.();
+      stopAuthRetry?.();
       window.removeEventListener("focus", refreshConnection);
     };
   }, [refreshConnection]);
@@ -81,27 +98,74 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
     setConnecting(true);
     setConnectionError("");
     try {
-      const url = await invoke<string>("chatgpt_begin_login");
+      const url = await invoke<string>("chatgpt_begin_login", { newAccount: true });
       await openUrl(url);
     } catch (error) {
-      setConnectionError(`Could not open ChatGPT sign-in: ${String(error)}`);
+      setConnectionError(friendlyChatGptError(error));
+    } finally {
+      setConnecting(false);
+    }
+  };
+  const disconnectChatGpt = async () => {
+    setConnecting(true);
+    setConnectionError("");
+    try {
+      await invoke("chatgpt_disconnect");
+      await refreshConnection();
+    } catch (error) {
+      setConnectionError(`Could not disconnect ChatGPT: ${String(error)}`);
+    } finally {
+      setConnecting(false);
+    }
+  };
+  const switchChatGpt = async () => {
+    setConnecting(true);
+    setConnectionError("");
+    try {
+      const url = await invoke<string>("chatgpt_begin_login", { newAccount: true });
+      await openUrl(url);
+    } catch (error) {
+      setConnectionError(friendlyChatGptError(error));
+    } finally {
+      setConnecting(false);
+    }
+  };
+  const selectChatGpt = async (clientId: string) => {
+    setConnecting(true);
+    setConnectionError("");
+    try {
+      await invoke("chatgpt_select_profile", { clientId });
+      await refreshConnection();
+    } catch (error) {
+      setConnectionError(`Could not select ChatGPT account: ${String(error)}`);
     } finally {
       setConnecting(false);
     }
   };
   return <main className="notes-window settings-window">
     <header className="notes-header settings-header">
-      <div><h1>Settings</h1><p>Make NEAR comfortable for you.</p></div>
+      <div><h1>Settings</h1><p>Make NEAR comfortable for you.</p><PreviewDuration /></div>
       <button className="settings-close" aria-label="Close settings" onClick={() => void getCurrentWindow().close()}>&times;</button>
     </header>
     <section className="settings-section" aria-labelledby="connection-settings-title">
-      <h2 id="connection-settings-title">ChatGPT connection</h2>
+      <h2 id="connection-settings-title">AI provider</h2>
+      <p>ChatGPT AI requires a Go, Plus, Pro, or Business plan. Free accounts can connect, but cannot use ChatGPT AI in NEAR. Local features remain available.</p>
       <p className={`settings-connection-status ${connection?.connected ? "is-connected" : ""}`} role="status">{connection?.message ?? "Checking connection..."}</p>
       {connection?.email && <p className="settings-detail"><span>Account</span><strong>{connection.email}</strong></p>}
       {connection?.connected && <p className="settings-detail"><span>Plan usage</span><strong>{connection.plan_usage_enabled ? "Enabled" : "Not enabled"}</strong></p>}
+      {profiles.length > 0 && <div className="settings-saved-accounts" aria-label="Saved ChatGPT accounts">
+        {profiles.map(profile => <div className="settings-detail" key={profile.clientId}>
+          <span>{profile.email ?? "ChatGPT account"} · {profile.clientId.slice(-8)}</span>
+          <button className="settings-secondary-action" disabled={connecting || profile.active} onClick={() => void selectChatGpt(profile.clientId)}>{profile.active ? "Active" : "Use account"}</button>
+        </div>)}
+      </div>}
       {connectionError && <p className="notes-error" role="alert">{connectionError}</p>}
       <div className="settings-actions">
         {!connection?.connected && <button className="settings-primary-action" disabled={connecting} onClick={() => void connectChatGpt()}>{connecting ? "Opening sign-in..." : "Connect ChatGPT"}</button>}
+        {connection?.connected && <>
+          <button className="settings-primary-action" disabled={connecting} onClick={() => void switchChatGpt()}>{connecting ? "Opening sign-in..." : "Switch account"}</button>
+          <button className="settings-danger-action" disabled={connecting} onClick={() => void disconnectChatGpt()}>{connecting ? "Please wait..." : "Disconnect"}</button>
+        </>}
         <button className="settings-secondary-action" onClick={() => void refreshConnection()}>Refresh status</button>
       </div>
     </section>

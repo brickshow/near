@@ -1,0 +1,18 @@
+.access-panel { box-sizing: border-box; display: flex; gap: 20px; align-items: center; width: 576px; min-height: 163px; margin: 0 auto; padding: 18px 8px 10px; color: #f5f1e8; font-family: inherit; }
+.access-copy { flex: 1; min-width: 0; }
+.access-eyebrow { display: flex; align-items: center; gap: 6px; color: #dfc488; font-size: 8px; letter-spacing: .09em; text-transform: uppercase; }
+.access-eyebrow i { width: 4px; height: 4px; border-radius: 50%; background: #bdff79; box-shadow: 0 0 10px #bdff7966; }
+.access-panel h1 { margin: 7px 0; font-size: 21px; line-height: 1.12; font-weight: 500; letter-spacing: -.035em; }
+.access-panel p { margin: 0; font-size: 9px; line-height: 1.5; color: #d1d5cc; }
+.access-panel .access-message { margin-top: 5px; color: #dfc488; font-size: 8px; }
+.access-actions { width: 156px; flex-shrink: 0; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.access-actions button { border: 1px solid #bdff7940; border-radius: 8px; background: #bdff79; color: #152313; padding: 10px 8px; font-size: 10px; font-weight: 600; cursor: pointer; transition: background .2s; }
+.access-actions button:hover { background: #d4ffa8; }
+.access-actions button:focus-visible { outline: 2px solid #dfc488; outline-offset: 3px; }
+.access-actions button:disabled { opacity: .5; cursor: wait; }
+.access-actions .access-secondary { background: #263229; color: #f5f1e8; }
+.access-actions .access-link { background: transparent; border: 0; color: #ddd7c7; text-decoration: underline; text-underline-offset: 3px; padding: 3px; font-size: 9px; font-weight: 400; }
+.access-actions small, .access-gentle { text-align: center; color: #dfc488; font-size: 8px; }
+.access-docked { display: grid; min-height: 100vh; align-items: center; background: #06151b; }
+.preview-duration { color: #dfc488; font-size: 11px; margin: 8px 0; }
+.preview-notice { position: fixed; z-index: 100; bottom: 10px; left: 50%; transform: translateX(-50%); padding: 7px 16px; border-radius: 8px; background: #142a26; border: 1px solid #dfc48844; color: #f5f1e8; font-size: 10px; pointer-events: none; }

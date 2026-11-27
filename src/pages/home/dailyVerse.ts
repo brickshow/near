@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Database from "@tauri-apps/plugin-sql";
+import Database from "../../lib/accessDatabase";
 
 export type DailyVerse = { text: string; reference: string; translation: "ASV" };
 

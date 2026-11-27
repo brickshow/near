@@ -2,12 +2,15 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "faith-window",
   "description": "Private Scripture reflection and Faith Journey panel",
-  "windows": ["near-faith"],
+  "windows": [
+    "near-faith"
+  ],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
     "core:window:allow-close",
     "core:window:allow-current-monitor",
+    "core:window:allow-primary-monitor",
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:window:allow-set-focus",
@@ -17,7 +20,6 @@
     "core:window:allow-set-shadow",
     "core:window:allow-set-resizable",
     "core:window:allow-set-always-on-top",
-    "sql:default",
-    "sql:allow-execute"
+    "sql:allow-load"
   ]
 }

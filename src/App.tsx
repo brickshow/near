@@ -57,6 +57,7 @@ import { VoiceSettingsPage } from "./pages/voice-setup/VoiceSettingsPage";
 import { FinishSetupPage } from "./pages/voice-setup/FinishSetupPage";
 import { NEAR_VOICE_KEY, stopNearVoice, type NearSpeechStream } from "./lib/voice";
 import { sendChat, type ChatTurn } from "./lib/chat";
+import { friendlyChatGptError } from "./lib/chatgptErrors";
 import { COLLAPSE_DELAY_KEY, loadCollapseDelaySeconds } from "./lib/notchPreferences";
 import { localTranscription, type TranscriptionSession } from "./lib/transcription";
 
@@ -101,7 +102,7 @@ const AGENT_CHOICES: AgentChoice[] = ["ChatGPT", "Claude Code", "Local model"];
 function App() {
   const windowKind = new URLSearchParams(window.location.search).get("window");
   const isChatWindow = windowKind === "chat" || windowKind === "bible" || windowKind === "notes" || windowKind === "church" || windowKind === "settings" || windowKind === "faith";
-  const { resizeNotch, toggle, expanded, previewSize } = useNotchWindow();
+  const { resizeNotch, toggle, expanded, settledOpen, size } = useNotchWindow();
   const [collapseDelaySeconds, setCollapseDelaySeconds] = useState(loadCollapseDelaySeconds);
   const [activityCount, setActivityCount] = useState(0);
   const [pointerInside, setPointerInside] = useState(false);
@@ -206,7 +207,7 @@ function App() {
     setChatGptSignInMessage("");
     setChatGptSignInMessage("Opening ChatGPT sign-in…");
     try {
-      const url = await invoke<string>("chatgpt_begin_login");
+      const url = await invoke<string>("chatgpt_begin_login", { newAccount: true });
       await openUrl(url);
       setChatGptSignInMessage("Finish signing in in your browser. NEAR will continue automatically.");
     } catch (error) {
@@ -350,9 +351,17 @@ function App() {
     void listen<string>("near://chatgpt-auth-error", ({ payload }) => {
       if (!disposed) {
         setChatGptSignInBusy(false);
-        setChatGptSignInMessage(`ChatGPT connection failed: ${payload}`);
+        setChatGptSignInMessage(friendlyChatGptError(payload));
         setPage("choose-agent");
       }
+    }).then((stop) => { if (disposed) stop(); else unlisten.push(stop); }).catch(() => {});
+    void listen<{ url: string; diagnostic: string }>("near://chatgpt-auth-retry", ({ payload }) => {
+      if (disposed) return;
+      setChatGptSignInMessage(`${friendlyChatGptError(payload.diagnostic)} A fresh sign-in was opened in a new browser tab.`);
+      void openUrl(payload.url).catch(error => {
+        setChatGptSignInBusy(false);
+        setChatGptSignInMessage(friendlyChatGptError(error));
+      });
     }).then((stop) => { if (disposed) stop(); else unlisten.push(stop); }).catch(() => {});
     return () => { disposed = true; unlisten.forEach((stop) => stop()); };
   }, []);
@@ -734,7 +743,8 @@ function App() {
   return (
     <>
     <NotchFrame
-      previewSize={previewSize}
+      size={size}
+      settledOpen={settledOpen}
       onPointerEnter={() => setPointerInside(true)}
       onPointerLeave={() => setPointerInside(false)}
       onPointerDown={() => {

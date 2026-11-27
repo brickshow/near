@@ -2,11 +2,14 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capabilities for the main NEAR window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-set-focus",
     "core:window:allow-current-monitor",
+    "core:window:allow-primary-monitor",
     "core:window:allow-set-focusable",
     "core:window:allow-cursor-position",
     "core:window:allow-outer-position",
@@ -22,8 +25,6 @@
     "core:window:allow-hide",
     "core:webview:allow-create-webview-window",
     "opener:default",
-    "sql:default",
-    "sql:allow-execute"
+    "sql:allow-load"
   ]
 }
-

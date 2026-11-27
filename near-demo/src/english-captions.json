@@ -1,0 +1,329 @@
+[
+  {
+    "startMs": 0,
+    "endMs": 2350,
+    "text": "You open your laptop and think,"
+  },
+  {
+    "startMs": 2350,
+    "endMs": 5680,
+    "text": "“I'll read my Bible after I\nfinish this one thing.”"
+  },
+  {
+    "startMs": 9000,
+    "endMs": 11220,
+    "text": "Then a meeting starts."
+  },
+  {
+    "startMs": 11220,
+    "endMs": 13090,
+    "text": "A deadline moves up,"
+  },
+  {
+    "startMs": 13090,
+    "endMs": 15400,
+    "text": "and the messages keep coming."
+  },
+  {
+    "startMs": 15400,
+    "endMs": 17840,
+    "text": "Every time you think you'll\nget a few minutes,"
+  },
+  {
+    "startMs": 17840,
+    "endMs": 20320,
+    "text": "something else needs your attention."
+  },
+  {
+    "startMs": 22000,
+    "endMs": 24010,
+    "text": "By the time you close your laptop,"
+  },
+  {
+    "startMs": 24010,
+    "endMs": 26000,
+    "text": "another day is gone."
+  },
+  {
+    "startMs": 26000,
+    "endMs": 28010,
+    "text": "All you wanted was a moment"
+  },
+  {
+    "startMs": 28010,
+    "endMs": 31200,
+    "text": "to read one Bible verse and reflect on it."
+  },
+  {
+    "startMs": 34000,
+    "endMs": 37680,
+    "text": "Then one busy day turns into a whole week."
+  },
+  {
+    "startMs": 37680,
+    "endMs": 40160,
+    "text": "Have you ever felt like work got so busy"
+  },
+  {
+    "startMs": 40160,
+    "endMs": 42840,
+    "text": "that you started drifting away from God?"
+  },
+  {
+    "startMs": 45000,
+    "endMs": 47200,
+    "text": "That's why I built NEAR."
+  },
+  {
+    "startMs": 47200,
+    "endMs": 50800,
+    "text": "The name stands for New\nEncounter and Renewal."
+  },
+  {
+    "startMs": 50800,
+    "endMs": 52930,
+    "text": "It's a desktop faith companion"
+  },
+  {
+    "startMs": 52930,
+    "endMs": 54520,
+    "text": "that helps you make time for God."
+  },
+  {
+    "startMs": 55000,
+    "endMs": 57040,
+    "text": "NEAR lives in a little notch"
+  },
+  {
+    "startMs": 57040,
+    "endMs": 58200,
+    "text": "at the top of your screen."
+  },
+  {
+    "startMs": 61000,
+    "endMs": 64000,
+    "text": "Open NEAR right over what\nyou're working on."
+  },
+  {
+    "startMs": 64000,
+    "endMs": 65510,
+    "text": "Your apps stay open,"
+  },
+  {
+    "startMs": 65510,
+    "endMs": 68000,
+    "text": "and today's Bible verse is right there."
+  },
+  {
+    "startMs": 70000,
+    "endMs": 71780,
+    "text": "Let's take a moment to read a verse"
+  },
+  {
+    "startMs": 71780,
+    "endMs": 73000,
+    "text": "and reflect on it."
+  },
+  {
+    "startMs": 75000,
+    "endMs": 76780,
+    "text": "Let's start with voice."
+  },
+  {
+    "startMs": 76780,
+    "endMs": 79640,
+    "text": "If I'm between tasks and\nwant a moment to pause,"
+  },
+  {
+    "startMs": 79640,
+    "endMs": 82800,
+    "text": "I can talk to NEAR right from my desktop."
+  },
+  {
+    "startMs": 82800,
+    "endMs": 84560,
+    "text": "I hold N and ask."
+  },
+  {
+    "startMs": 100000,
+    "endMs": 103000,
+    "text": "If I'm somewhere quiet, I\ncan type instead."
+  },
+  {
+    "startMs": 103000,
+    "endMs": 105200,
+    "text": "Here, I'll ask NEAR for a question"
+  },
+  {
+    "startMs": 105200,
+    "endMs": 107680,
+    "text": "I can reflect on after\nreading the passage."
+  },
+  {
+    "startMs": 119000,
+    "endMs": 121520,
+    "text": "I can also open the Bible directly.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 121520,
+    "endMs": 124920,
+    "text": "I'll pick a passage and press the read-\naloud control.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 126570,
+    "endMs": 129700,
+    "text": "In the beginning God created\nthe heavens and the earth.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 135240,
+    "endMs": 141600,
+    "text": "And the earth was waste and void,\nand darkness was upon the face",
+    "placement": "panel"
+  },
+  {
+    "startMs": 141600,
+    "endMs": 143950,
+    "text": "of the deep.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 144000,
+    "endMs": 146870,
+    "text": "In Journey, I can create a personal goal",
+    "placement": "panel"
+  },
+  {
+    "startMs": 146870,
+    "endMs": 148400,
+    "text": "for my walk with God.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 148400,
+    "endMs": 151160,
+    "text": "I'll set one I can\nactually follow this week:",
+    "placement": "panel"
+  },
+  {
+    "startMs": 169000,
+    "endMs": 172270,
+    "text": "When a passage gives me something I want\nto remember,",
+    "placement": "panel"
+  },
+  {
+    "startMs": 172270,
+    "endMs": 174120,
+    "text": "I can write it down in Notes.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 174120,
+    "endMs": 177840,
+    "text": "I'll add a short reflection and include\nthe verse reference.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 177840,
+    "endMs": 181120,
+    "text": "Later, I can click that reference right\nfrom my note",
+    "placement": "panel"
+  },
+  {
+    "startMs": 181120,
+    "endMs": 182200,
+    "text": "and open it again.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 199000,
+    "endMs": 201360,
+    "text": "If I'm already listening to worship music,"
+  },
+  {
+    "startMs": 201360,
+    "endMs": 203760,
+    "text": "I can control it right here in NEAR."
+  },
+  {
+    "startMs": 203760,
+    "endMs": 204830,
+    "text": "I can pause the song"
+  },
+  {
+    "startMs": 204830,
+    "endMs": 206600,
+    "text": "and pick up where I left off."
+  },
+  {
+    "startMs": 207350,
+    "endMs": 209600,
+    "text": "[Worship music begins]"
+  },
+  {
+    "startMs": 220000,
+    "endMs": 223500,
+    "text": "Church gives me one place to\nsee my church activities.",
+    "placement": "panel"
+  },
+  {
+    "startMs": 223500,
+    "endMs": 226340,
+    "text": "I can open the calendar,\ncheck what's coming up,",
+    "placement": "panel"
+  },
+  {
+    "startMs": 226340,
+    "endMs": 227940,
+    "text": "and see the details for something",
+    "placement": "panel"
+  },
+  {
+    "startMs": 242000,
+    "endMs": 243580,
+    "text": "Here's one more thing."
+  },
+  {
+    "startMs": 243580,
+    "endMs": 247380,
+    "text": "I can start a worship song by\nasking NEAR out loud."
+  },
+  {
+    "startMs": 249000,
+    "endMs": 253000,
+    "text": "Play music, Nothing Is Impossible\nby Planetshakers."
+  },
+  {
+    "startMs": 272450,
+    "endMs": 274650,
+    "text": "[Worship music begins]",
+    "placement": "upper-left"
+  },
+  {
+    "startMs": 285000,
+    "endMs": 288400,
+    "text": "Even on a busy day, there's\nroom for one verse,"
+  },
+  {
+    "startMs": 288400,
+    "endMs": 290000,
+    "text": "a moment to reflect,"
+  },
+  {
+    "startMs": 290000,
+    "endMs": 293350,
+    "text": "or a song that helps you turn your\nattention back to God."
+  },
+  {
+    "startMs": 294000,
+    "endMs": 295880,
+    "text": "That's why I built NEAR."
+  },
+  {
+    "startMs": 295880,
+    "endMs": 298100,
+    "text": "From Team ANCHOR, thanks for watching."
+  }
+]

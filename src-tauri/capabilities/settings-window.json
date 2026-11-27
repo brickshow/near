@@ -2,13 +2,16 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "settings-window",
   "description": "NEAR application settings",
-  "windows": ["near-settings"],
+  "windows": [
+    "near-settings"
+  ],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
     "core:app:allow-version",
     "core:window:allow-close",
     "core:window:allow-current-monitor",
+    "core:window:allow-primary-monitor",
     "core:window:allow-set-focus",
     "core:window:allow-show",
     "core:window:allow-hide",
@@ -18,6 +21,7 @@
     "core:window:allow-set-shadow",
     "core:window:allow-set-resizable",
     "core:window:allow-set-always-on-top",
-    "opener:default"
+    "opener:default",
+    "sql:allow-load"
   ]
 }
