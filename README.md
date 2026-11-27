@@ -209,4 +209,4 @@ Notes dictation now lets you choose an input microphone (remembered on this devi
 
 ## Temporary Hackathon Preview
 
-The public hackathon release has a full-featured 72-hour preview enforced by Rust and a Cloudflare Worker/D1 activation service. Commercial NEAR licenses ($10, planned through Polar) are coming soon. See [deployment, configuration, privacy limits, and release verification](docs/hackathon-preview.md) before building or distributing installers.
+The public hackathon release includes a full-featured 72-hour preview that starts automatically and works offline. NEAR keeps the preview dates in your OS credential store and uses your device clock to track expiration. Commercial NEAR licenses ($10, planned through Polar) are coming soon. See the [preview and release guide](docs/hackathon-preview.md).

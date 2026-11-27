@@ -6,7 +6,6 @@ import {
   Easing,
   Img,
   interpolate,
-  Sequence,
   spring,
   staticFile,
   useCurrentFrame,
@@ -19,15 +18,15 @@ export type NearClosingProps = {
 };
 
 export const NEAR_CLOSING_TIMING = {
-  close: [0, 120],
-  storyLine: [120, 420],
-  endCard: [420, 600],
-  fullDemoStartFrame: 8400,
+  close: [0, 0],
+  storyLine: [0, 270],
+  endCard: [270, 450],
+  fullDemoStartFrame: 8550,
 } as const;
 
 export const NEAR_CLOSING_COPY = {
   story: "Even on a busy day, there’s room for one verse, a moment to reflect, or a song that helps you turn your attention back to God.",
-  thanks: "That’s why we built NEAR. From Team ANCHOR, thanks for watching.",
+    thanks: "That’s why I built NEAR. From Team ANCHOR, thanks for watching.",
   phrases: ["One verse.", "A moment to reflect."],
   name: "New Encounter and Renewal",
   tagline: "A little closer each day.",
@@ -35,7 +34,7 @@ export const NEAR_CLOSING_COPY = {
 } as const;
 
 const calculateMetadata: CalculateMetadataFunction<NearClosingProps> = () => ({
-  durationInFrames: 600,
+  durationInFrames: 450,
   fps: 30,
   width: 1920,
   height: 1080,
@@ -52,7 +51,7 @@ const musicVolume = (frame: number) => interpolate(
 );
 
 const MaskedPhrase: React.FC<{ text: string; start: number; end: number }> = ({ text, start, end }) => {
-  const frame = useCurrentFrame();
+  const frame = useCurrentFrame() + 150;
   const { fps } = useVideoConfig();
   const local = frame - start;
   const entrance = spring({ frame: local, fps, config: { damping: 28, stiffness: 52, mass: 1.15 } });
@@ -74,7 +73,7 @@ const Initials: React.FC = () => <>
 </>;
 
 const EndCard: React.FC = () => {
-  const frame = useCurrentFrame();
+  const frame = useCurrentFrame() + 150;
   const { fps } = useVideoConfig();
   const reveal = spring({ frame: frame - 429, fps, config: { damping: 25, stiffness: 72, mass: 0.92 } });
   const opacity = interpolate(frame, [420, 472], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
@@ -92,22 +91,17 @@ const EndCard: React.FC = () => {
 };
 
 export const NearClosing: React.FC<NearClosingProps> = ({ narrationEnabled = true, musicEnabled = true }) => {
-  const frame = useCurrentFrame();
+  const frame = useCurrentFrame() + 150;
   const fadeOutShot = interpolate(frame, [40, 112], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
   const glow = interpolate(frame, [65, 160, 430, 600], [0.1, 0.62, 0.52, 0.12], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   return <div style={{ position: "relative", width: 1920, height: 1080, overflow: "hidden", background: "#070D12", color: milk }}>
     <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 53%, rgba(48,111,89,.14), transparent 60%), linear-gradient(180deg,#091016 0%,#080D12 100%)" }} />
     <div style={{ position: "absolute", left: "50%", top: "48%", width: 1100, height: 850, transform: "translate(-50%,-50%)", borderRadius: "50%", background: `radial-gradient(ellipse, rgba(57,216,151,${0.31 * glow}) 0%, rgba(37,134,107,${0.16 * glow}) 42%, transparent 73%)`, filter: "blur(65px)" }} />
 
-    {/* Freeze Scene 3's exact final frame for the cut; it fades away during the quiet opening beat. */}
-    {frame < 122 && <Img src={staticFile("captures/scene-3/closing-handoff.png")} style={{position:"absolute", inset:0, width:"100%"}} />}
     <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 48%, #153229, #080D12 69%)", opacity: fadeOutShot }} />
 
-    {narrationEnabled && <>
-      <Sequence from={120} durationInFrames={300}><Audio src={staticFile("audio/near-closing-01.mp3")} /></Sequence>
-      <Sequence from={420} durationInFrames={180}><Audio src={staticFile("audio/near-closing-02.mp3")} /></Sequence>
-    </>}
-    {musicEnabled && <Audio src={staticFile("audio/near-meet-music.wav")} volume={musicVolume(frame)} startFrom={300} />}
+    {narrationEnabled && <Audio src={staticFile("audio/near-closing-male.wav")} />}
+    {musicEnabled && <Audio src={staticFile("audio/near-meet-music.wav")} volume={musicVolume(frame)} startFrom={450} />}
 
     <MaskedPhrase text={NEAR_CLOSING_COPY.phrases[0]} start={178} end={234} />
     <MaskedPhrase text={NEAR_CLOSING_COPY.phrases[1]} start={230} end={408} />
@@ -120,7 +114,7 @@ export const NearClosing: React.FC<NearClosingProps> = ({ narrationEnabled = tru
 export const NearClosingComposition = () => <Composition
   id="NearClosing"
   component={NearClosing}
-  durationInFrames={600}
+  durationInFrames={450}
   fps={30}
   width={1920}
   height={1080}

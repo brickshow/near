@@ -1047,10 +1047,60 @@ fn get_main_monitor(app: tauri::AppHandle) -> Result<Option<tauri::Monitor>, Str
     window.current_monitor().map_err(|error| error.to_string())
 }
 
+#[cfg(windows)]
+fn remove_notch_caption(window: &tauri::WebviewWindow) -> Result<(), Box<dyn std::error::Error>> {
+    use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+    use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_NCRENDERING_POLICY, DWMNCRP_DISABLED};
+    use windows::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass};
+    use windows::Win32::UI::WindowsAndMessaging::*;
+
+    // Windows can still draw caption controls through the transparent corners
+    // when an undecorated top-level window retains its system menu and boxes.
+    fn notch_style(style: u32) -> u32 {
+        let frame = WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+        (style & !frame.0) | WS_POPUP.0
+    }
+
+    // Tao recomputes GWL_STYLE when focusability or visibility changes.
+    unsafe extern "system" fn caption_filter(
+        hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM, id: usize, _: usize,
+    ) -> LRESULT {
+        unsafe {
+            if msg == WM_NCPAINT {
+                return LRESULT(0);
+            }
+            if msg == WM_NCACTIVATE {
+                // Deliver activation to Tao while suppressing DefWindowProc's frame repaint.
+                return DefSubclassProc(hwnd, msg, wp, LPARAM(-1));
+            }
+            if msg == WM_STYLECHANGING && wp.0 as i32 == GWL_STYLE.0 {
+                let styles = &mut *(lp.0 as *mut STYLESTRUCT);
+                styles.styleNew = notch_style(styles.styleNew);
+            }
+            if msg == WM_NCDESTROY {
+                let _ = RemoveWindowSubclass(hwnd, Some(caption_filter), id);
+            }
+            DefSubclassProc(hwnd, msg, wp, lp)
+        }
+    }
+
+    let hwnd = window.hwnd()?;
+    unsafe {
+        SetWindowSubclass(hwnd, Some(caption_filter), 1, 0).ok()?;
+        let style = GetWindowLongW(hwnd, GWL_STYLE);
+        SetWindowLongW(hwnd, GWL_STYLE, notch_style(style as u32) as i32);
+        SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)?;
+        // Show Desktop recomposites the non-client frame even on a captionless popup.
+        let policy = DWMNCRP_DISABLED;
+        DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, std::ptr::from_ref(&policy).cast(), std::mem::size_of_val(&policy) as u32)?;
+    }
+    Ok(())
+}
+
 // Move and resize in one Windows operation so a resize never paints at the
 // previous frame's horizontal position. Coordinates are physical, including DPI.
 #[tauri::command]
-fn set_notch_bounds(window: tauri::WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+fn set_notch_bounds(window: tauri::WebviewWindow, width: f64, height: f64) -> Result<tauri::LogicalSize<f64>, String> {
     if !width.is_finite() || !height.is_finite() {
         return Err("Invalid notch dimensions".into());
     }
@@ -1061,23 +1111,43 @@ fn set_notch_bounds(window: tauri::WebviewWindow, width: f64, height: f64) -> Re
     let max_height = (monitor.size().height as i32 - (40.0 * scale).round() as i32).max((36.0 * scale) as i32);
     let width = ((width.clamp(320.0, 680.0) * scale).round() as i32).min(max_width);
     let height = ((height.clamp(36.0, 180.0) * scale).round() as i32).min(max_height);
-    let x = monitor.position().x + (monitor.size().width as i32 - width) / 2;
     let y = monitor.position().y;
 
     #[cfg(windows)]
     {
-        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+        use windows::Win32::Foundation::RECT;
+        use windows::Win32::Graphics::Gdi::{CreateRectRgn, DeleteObject, SetWindowRgn};
+        use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOZORDER};
         let hwnd = window.hwnd().map_err(|e| e.to_string())?;
-        // This command runs on the event thread; the HWND belongs to this live window.
-        unsafe { SetWindowPos(hwnd, None, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER) }
-            .map_err(|e| e.to_string())?;
+        // Keep WebView2's transparent surface at one size. Moving a smaller HWND
+        // can display the previous, wider surface cropped against its right edge.
+        let host_width = ((680.0 * scale).round() as i32).min(max_width);
+        let host_height = ((180.0 * scale).round() as i32).min(max_height);
+        let x = monitor.position().x + (monitor.size().width as i32 - host_width) / 2;
+        let mut rect = RECT::default();
+        unsafe {
+            GetWindowRect(hwnd, &mut rect).map_err(|e| e.to_string())?;
+            if (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top) != (x, y, host_width, host_height) {
+                SetWindowPos(hwnd, None, x, y, host_width, host_height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOCOPYBITS)
+                    .map_err(|e| e.to_string())?;
+            }
+            let left = (host_width - width) / 2;
+            let region = CreateRectRgn(left, 0, left + width, height);
+            if region.is_invalid() { return Err("Could not create the notch window region".into()); }
+            // Windows takes ownership of the region on success.
+            if SetWindowRgn(hwnd, Some(region), true) == 0 {
+                let _ = DeleteObject(region.into());
+                return Err("Could not apply the notch window region".into());
+            }
+        }
     }
     #[cfg(not(windows))]
     {
+        let x = monitor.position().x + (monitor.size().width as i32 - width) / 2;
         window.set_size(tauri::PhysicalSize::new(width as u32, height as u32)).map_err(|e| e.to_string())?;
         window.set_position(tauri::PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
     }
-    Ok(())
+    Ok(tauri::PhysicalSize::new(width as u32, height as u32).to_logical(scale))
 }
 
 #[tauri::command]
@@ -1287,6 +1357,8 @@ pub fn run() {
                     .build(app)?;
             if let Some(window) = app.get_webview_window("main") {
                 hide_webview_context_menu(&window);
+                #[cfg(windows)]
+                remove_notch_caption(&window)?;
                 window.set_icon(tauri::image::Image::new(
                     include_bytes!("../icons/128x128.rgba"),
                     128,
@@ -1339,7 +1411,7 @@ pub fn run() {
                 invoke.resolver.reject("NEAR access is locked.");
                 return true;
             }
-            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![access::access_status, access::access_refresh, access::access_open_landing, access_data::access_export_data, access_data::access_delete_data, access_data::db_select, access_data::db_execute, media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, chatgpt_profiles, chatgpt_select_profile, chatgpt_disconnect, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible];
+            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![access::access_status, access::access_activate, access::access_open_landing, access_data::access_export_data, access_data::access_delete_data, access_data::db_select, access_data::db_execute, media::media_state, media::media_control, media::media_play_youtube, media::media_play_spotify, music::resolve_youtube_music, greet, get_main_monitor, set_notch_bounds, set_notch_mouse_control, set_notch_auto_hide_seconds, get_start_at_login, set_start_at_login, exit_near, chatgpt_begin_login, chatgpt_status, chatgpt_profiles, chatgpt_select_profile, chatgpt_disconnect, prepare_chatgpt, chatgpt_reply, whisper_model_status, download_whisper_model, cancel_whisper_model_download, prepare_whisper_model, transcribe_near_audio, voice_models::list_near_voices, voice_models::download_near_voice, voice_models::prepare_near_voice, voice_models::synthesize_near_voice, bible_resources::list_near_bibles, bible_resources::download_near_bible];
             handler(invoke)
         })
         .build(tauri::generate_context!())

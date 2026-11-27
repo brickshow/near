@@ -13,7 +13,6 @@ import {
   useVideoConfig,
   Video,
 } from "remotion";
-import { notchGeometry } from "../../src/components/notchGeometry";
 
 export type NearMeetProps = {
   narrationEnabled?: boolean;
@@ -33,7 +32,7 @@ export const NEAR_MEET_COPY = {
   name: "New Encounter and Renewal",
   walkthrough: "A little closer each day.",
   narration: [
-    "That’s why we built NEAR. The name stands for New Encounter and Renewal. It’s a desktop faith companion that helps you make time for God.",
+    "That’s why I built NEAR. The name stands for New Encounter and Renewal. It’s a desktop faith companion that helps you make time for God.",
     "NEAR lives in a little notch at the top of your screen.",
     "Open NEAR right over what you’re working on. Your apps stay open, and today’s Bible verse is right there.",
     "Let’s take a moment to read a verse and reflect on it.",
@@ -47,7 +46,6 @@ const calculateMetadata: CalculateMetadataFunction<NearMeetProps> = () => ({
   height: 1080,
 });
 
-const toPath = (path: string) => `path('${path}')`;
 const titleMilk = "#F4F2E8";
 
 export const WorkWindow = () => (
@@ -116,7 +114,7 @@ const MaskedTitle: React.FC<{ children: React.ReactNode; start: number; end: num
 const NameLine: React.FC = () => {
   const frame = useCurrentFrame();
   const opacity = interpolate(frame, [96, 119, 280, 304], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
-  return <div style={{ position: "absolute", top: 106, left: 0, width: "100%", textAlign: "center", fontFamily: "Arial, sans-serif", fontSize: 25, letterSpacing: ".055em", color: "#E9EEE8", opacity, textShadow: "0 2px 15px rgba(0,0,0,.32)" }}>
+  return <div style={{ position: "absolute", top: 790, left: 0, width: "100%", textAlign: "center", fontFamily: "Arial, sans-serif", fontSize: 32, letterSpacing: ".055em", color: "#E9EEE8", opacity, textShadow: "0 2px 15px rgba(0,0,0,.75)" }}>
     {["New", "Encounter", "and", "Renewal"].map((word, index) => {
       const start = 98 + index * 10;
       const light = interpolate(frame, [start, start + 14], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp"});
@@ -127,20 +125,14 @@ const NameLine: React.FC = () => {
 
 export const NearMeetReveal: React.FC<NearMeetProps> = ({ narrationEnabled = true, musicEnabled = true }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const laptopSpring = spring({ frame, fps, config: { damping: 28, stiffness: 52, mass: 1.1 } });
-  const screenFade = interpolate(frame, [0, 42], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
-  const glow = interpolate(frame, [32, 82, 300], [0, 0.68, 0.68], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   const finalLineOpacity = interpolate(frame, [NEAR_MEET_TIMING.walkthrough[0], 790, 900], [0, 1, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
-  const cameraPush = interpolate(laptopSpring, [0, 1], [0.965, 1]) + interpolate(frame, [310, 575], [0, .02], {extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic)});
+  // Let each move settle before the still/video boundaries at frames 300 and 480.
+  const cameraScale = interpolate(frame, [0, 240, 330, 465, 600, 900], [1.38, 1.02, 1.02, 1.6, 1.6, 1.13], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
   const audioBed = (f: number) => interpolate(f, [0, 12, 82, 240, 295, 300, 405, 426, 480, 550, 696, 750, 846, 900], [0.18, 0.30, 0.60, 0.54, 0.33, 0.30, 0.58, 0.58, 0.34, 0.52, 0.48, 0.28, 0.58, 0.52], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
 
   return <div style={{ position: "relative", width: 1920, height: 1080, overflow: "hidden", background: "#070C0D", color: titleMilk }}>
     {narrationEnabled && <>
-      <Sequence><Audio src={staticFile("audio/meet-near-01.mp3")} /></Sequence>
-      <Sequence from={300}><Audio src={staticFile("audio/meet-near-02.mp3")} /></Sequence>
-      <Sequence from={480}><Audio src={staticFile("audio/meet-near-03.mp3")} /></Sequence>
-      <Sequence from={750}><Audio src={staticFile("audio/meet-near-04.mp3")} /></Sequence>
+      <Audio src={staticFile("audio/near-meet-male.wav")} />
       <Sequence from={426}><Audio src={staticFile("audio/near-notch-pluck.wav")} volume={0.28} /></Sequence>
     </>}
     {musicEnabled && <>
@@ -148,39 +140,19 @@ export const NearMeetReveal: React.FC<NearMeetProps> = ({ narrationEnabled = tru
       <Audio src={staticFile("audio/near-meet-music.wav")} volume={(f) => 0.72 * audioBed(f)} />
     </>}
 
-    <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 61%, rgba(34,125,88,.15) 0%, rgba(8,22,20,.18) 27%, transparent 64%), linear-gradient(180deg,#080d0f 0%,#0a1012 58%,#080d0e 100%)" }} />
-    <div style={{ position: "absolute", left: 410, top: 214, width: 1100, height: 850, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(51,226,157,.45), rgba(29,139,106,.14) 44%, transparent 72%)", filter: "blur(70px)", opacity: glow, transform: `scale(${interpolate(frame, [480, 536], [.84, 1.13], {extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.inOut(Easing.cubic)})})` }} />
-
-    {/* Real-screen recording fallback: work desktop is recreated until a portal-approved capture is supplied. */}
-    <div style={{ position: "absolute", left: 0, top: 0, width: 1920, height: 1080, opacity: screenFade }}>
-      <div style={{ position: "absolute", left: 228, top: 153, width: 1464, height: 924, padding: 12, borderRadius: 25, background: "linear-gradient(135deg,#59636a,#232b31 34%,#455057 70%,#20272c)", boxShadow: "0 38px 110px rgba(0,0,0,.62), 0 0 0 1px rgba(213,231,221,.24)", transform: `scale(${cameraPush})`, transformOrigin: "center bottom" }}>
-        <div style={{ position: "relative", width: 1440, height: 900, borderRadius: 15, overflow: "hidden", background: "#edf0f2", opacity: screenFade }}>
-          <WorkWindow />
-
-          {/* The real collapsed native NEAR window, including its recorded natural blink. */}
-          {frame >= NEAR_MEET_TIMING.collapsed[0] && frame < NEAR_MEET_TIMING.open[0] && <>
-            <div style={{ position: "absolute", zIndex: 12, left: 560, top: 32, width: 320, height: 36, clipPath: toPath(notchGeometry(320, 36).shape), opacity: frame < 426 || frame >= 447 ? 1 : 0 }}>
-              <Img src={staticFile("captures/near-notch-collapsed.png")} style={{ position: "absolute", inset: 0, width: 320, height: 36 }} />
-            </div>
-            {frame >= 426 && frame < 447 && <Sequence from={426} durationInFrames={21}>
-              <div style={{ position: "absolute", zIndex: 13, left: 560, top: 32, width: 320, height: 36, clipPath: toPath(notchGeometry(320, 36).shape) }}>
-                <Video src={staticFile("captures/near-notch-blink.mp4")} muted startFrom={70} endAt={91} style={{ position: "absolute", inset: 0, width: 320, height: 36 }} />
-              </div>
-            </Sequence>}
-          </>}
-
-          {frame >= 480 && <Img src={staticFile(`captures/expansion/${Math.min(56, 2 * Math.floor((frame - 480) / 2))}.png`)} style={{position: "absolute", left: 380, top: 32, width: 680, transform: "scale(1.2)", transformOrigin: "center top", zIndex: 14}} />}
-          <div style={{ position: "absolute", right: 24, bottom: 22, zIndex: 15, padding: "9px 13px", borderRadius: 7, background: "rgba(115,70,27,.94)", border: "1px solid rgba(255,220,159,.78)", color: "#fff4dc", fontFamily: "Arial,sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", boxShadow: "0 4px 18px rgba(0,0,0,.24)" }}>
-            Temporary work screen · Replace with desktop recording
-          </div>
-        </div>
-      </div>
+    <div style={{ position: "absolute", inset: 0, transform: `scale(${cameraScale})`, transformOrigin: "50% 0%" }}>
+      {frame < 480 && <Img src={staticFile("captures/scene-2/collapsed.png")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+      {frame >= 300 && frame < 480 && <Sequence from={300} durationInFrames={180}>
+        <Video src={staticFile("captures/scene-2/meet-near.mp4")} muted endAt={180} style={{ width: "100%", height: "100%", opacity: interpolate(frame, [300, 315], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }} />
+      </Sequence>}
+      {frame >= 480 && <Img src={staticFile("captures/scene-2/expanded.png")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
     </div>
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "linear-gradient(0deg, rgba(5,12,16,.58), transparent 40%)", opacity: interpolate(frame, [0, 290, 310], [1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }} />
 
-    <MaskedTitle start={18} end={300} top={21} size={60}>{NEAR_MEET_COPY.title}</MaskedTitle>
+    <MaskedTitle start={18} end={300} top={660} size={75}>{NEAR_MEET_COPY.title}</MaskedTitle>
     <NameLine />
 
-    <div style={{ position: "absolute", left: 1710, top: 550, width: 195, color: "#EAF2E8", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 31, lineHeight: 1.16, letterSpacing: "-.025em", opacity: finalLineOpacity, textShadow: "0 3px 24px rgba(0,0,0,.38)" }}>
+    <div style={{ position: "absolute", left: 115, top: 790, color: "#EAF2E8", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 42, lineHeight: 1.16, letterSpacing: "-.025em", opacity: finalLineOpacity, textShadow: "0 3px 24px rgba(0,0,0,.75)" }}>
       {NEAR_MEET_COPY.walkthrough}
     </div>
   </div>;

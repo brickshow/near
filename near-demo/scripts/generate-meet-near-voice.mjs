@@ -15,7 +15,7 @@ const voiceId = env.ELEVENLABS_VOICE_ID;
 if (!apiKey || !voiceId) throw new Error("Set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID in near-demo/.env");
 
 const cues = [
-  ["That’s why we built NEAR. The name stands for New Encounter and Renewal. It’s a desktop faith companion that helps you make time for God.", "meet-near-01.mp3"],
+  ["That’s why I built NEAR. The name stands for New Encounter and Renewal. It’s a desktop faith companion that helps you make time for God.", "meet-near-01-solo.mp3"],
   ["NEAR lives in a little notch at the top of your screen.", "meet-near-02.mp3"],
   ["Open NEAR right over what you’re working on. Your apps stay open, and today’s Bible verse is right there.", "meet-near-03.mp3"],
   ["Let’s take a moment to read a verse and reflect on it.", "meet-near-04.mp3"],

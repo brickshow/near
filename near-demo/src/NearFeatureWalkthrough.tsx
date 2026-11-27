@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Audio,
-  Freeze,
   CalculateMetadataFunction,
   Composition,
   Easing,
@@ -14,12 +13,12 @@ import {
   useVideoConfig,
   Video,
 } from "remotion";
-import { NearMeetReveal, WorkWindow } from "./NearMeetReveal";
+import { WorkWindow } from "./NearMeetReveal";
 
 export type NearFeatureWalkthroughProps = {
   narrationEnabled?: boolean;
   musicEnabled?: boolean;
-  /** Enable only verified source clips. Missing beats remain labeled placeholders. */
+  /** Enable only source clips present in public/captures/scene-3. */
   recordedCaptures?: Partial<Record<FeatureCaptureKey, boolean>>;
 };
 
@@ -31,7 +30,7 @@ export const FEATURE_WALKTHROUGH_TIMING = {
   notes: [2820, 3720],
   music: [3720, 4350],
   church: [4350, 5010],
-  voiceMusic: [5010, 6150],
+  voiceMusic: [5010, 6300],
   fullDemoStartFrame: 2250,
 } as const;
 
@@ -41,17 +40,15 @@ export const FEATURE_CAPTURE_SLOTS = [
     title: "Talk to NEAR",
     start: FEATURE_WALKTHROUGH_TIMING.talk[0],
     end: FEATURE_WALKTHROUGH_TIMING.talk[1],
-    narration: "near-feature-01-voice.mp3",
     capture: "01-talk.mp4",
-    prompt: "Hold N · ask for a verse · release N · hear NEAR reply",
-    appAudioAfter: 310,
+    prompt: "Hold N · request Nothing Is Impossible by Planetshakers",
+    appAudioAfter: 750,
   },
   {
     key: "chat",
     title: "Chat",
     start: FEATURE_WALKTHROUGH_TIMING.chat[0],
     end: FEATURE_WALKTHROUGH_TIMING.chat[1],
-    narration: "near-feature-02-voice.mp3",
     capture: "02-chat.mp4",
     prompt: "Type “What’s one question I can reflect on after reading Psalm 46:10?” · show the reply",
     appAudioAfter: 570,
@@ -61,17 +58,15 @@ export const FEATURE_CAPTURE_SLOTS = [
     title: "Bible · Read aloud",
     start: FEATURE_WALKTHROUGH_TIMING.bible[0],
     end: FEATURE_WALKTHROUGH_TIMING.bible[1],
-    narration: "near-feature-03-voice.mp3",
     capture: "03-bible-read-aloud.mp4",
     prompt: "Open Psalm 117 · use Read chapter · let the NEAR voice play",
-    appAudioAfter: 350,
+    appAudioAfter: 225,
   },
   {
     key: "journey",
     title: "Journey",
     start: FEATURE_WALKTHROUGH_TIMING.journey[0],
     end: FEATURE_WALKTHROUGH_TIMING.journey[1],
-    narration: "near-feature-04-voice.mp3",
     capture: "04-journey.mp4",
     prompt: "Save the three-workday Scripture and reflection goal",
     appAudioAfter: 425,
@@ -81,7 +76,6 @@ export const FEATURE_CAPTURE_SLOTS = [
     title: "Notes · Linked Scripture",
     start: FEATURE_WALKTHROUGH_TIMING.notes[0],
     end: FEATURE_WALKTHROUGH_TIMING.notes[1],
-    narration: "near-feature-05-voice.mp3",
     capture: "05-notes-verse-link.mp4",
     prompt: "Save Psalm 46:10 in a note · click it · open the passage",
     appAudioAfter: 430,
@@ -91,7 +85,6 @@ export const FEATURE_CAPTURE_SLOTS = [
     title: "Music controls",
     start: FEATURE_WALKTHROUGH_TIMING.music[0],
     end: FEATURE_WALKTHROUGH_TIMING.music[1],
-    narration: "near-feature-06-voice.mp3",
     capture: "06-music-controls.mp4",
     prompt: "Show a cleared worship track · pause · resume · retain title",
     appAudioAfter: 250,
@@ -101,7 +94,6 @@ export const FEATURE_CAPTURE_SLOTS = [
     title: "Church calendar",
     start: FEATURE_WALKTHROUGH_TIMING.church[0],
     end: FEATURE_WALKTHROUGH_TIMING.church[1],
-    narration: "near-feature-07-voice.mp3",
     capture: "07-church-calendar.mp4",
     prompt: "Select a sample small-group event · show date and time",
     appAudioAfter: 380,
@@ -111,17 +103,16 @@ export const FEATURE_CAPTURE_SLOTS = [
     title: "Talk to NEAR · Play music",
     start: FEATURE_WALKTHROUGH_TIMING.voiceMusic[0],
     end: FEATURE_WALKTHROUGH_TIMING.voiceMusic[1],
-    narration: "near-feature-08-voice.mp3",
     capture: "08-voice-play-music.mp4",
-    prompt: "Start paused · say “Play Amazing Grace” · show the match playing",
-    appAudioAfter: 240,
+    prompt: "Say “Play music, Nothing Is Impossible by Planetshakers” · show playback",
+    appAudioAfter: 840,
   },
 ] as const;
 
 export type FeatureCaptureKey = (typeof FEATURE_CAPTURE_SLOTS)[number]["key"];
 
 const calculateMetadata: CalculateMetadataFunction<NearFeatureWalkthroughProps> = () => ({
-  durationInFrames: 6150,
+  durationInFrames: 6300,
   fps: 30,
   width: 1920,
   height: 1080,
@@ -131,7 +122,7 @@ const milk = "#F4F2E8";
 
 const musicVolume = (frame: number) => interpolate(
   frame,
-  [0, 330, 410, 700, 750, 1100, 1320, 1690, 1740, 2070, 2430, 2550, 2820, 3240, 3370, 3720, 3900, 4050, 4350, 4570, 4740, 5010, 5350, 5460, 5570, 6000, 6150],
+  [0, 330, 410, 700, 750, 1100, 1320, 1690, 1740, 2070, 2430, 2550, 2820, 3240, 3370, 3720, 3900, 4050, 4350, 4570, 4740, 5010, 5350, 5460, 5570, 6150, 6300],
   [0.23, 0.17, 0.055, 0.06, 0.20, 0.14, 0.16, 0.14, 0.055, 0.19, 0.16, 0.055, 0.20, 0.15, 0.055, 0.20, 0.14, 0.035, 0.17, 0.14, 0.055, 0.19, 0.13, 0.055, 0.015, 0.015, 0],
   { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) },
 );
@@ -168,34 +159,11 @@ const FeaturePlaceholder: React.FC<{
 
 
 const RecordedFeatureCapture: React.FC<{ feature: (typeof FEATURE_CAPTURE_SLOTS)[number] }> = ({ feature }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const length = feature.end - feature.start;
-  const local = frame;
-  const exit = interpolate(local, [85, 110], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
-  const [approach, settle, zoom, controlY, resultY] = {
-    talk: [230, 310, 1.22, 0, 0], chat: [80, 170, 1.16, 60, 20],
-    bible: [100, 240, 1.13, 20, 35], journey: [150, 330, 1.12, 60, 40],
-    notes: [300, 480, 1.18, 55, 35], music: [100, 205, 1.15, 0, 0],
-    church: [140, 270, 1.14, 45, 35], voiceMusic: [110, 225, 1.30, 0, 0],
-  }[feature.key];
-  const scale = interpolate(local, [approach, settle, length - 45, length], [1, zoom, zoom, feature.key === "voiceMusic" ? zoom : 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic) });
-  const focusY = interpolate(local, [settle, settle + 60], [controlY, resultY], {extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.cubic)}) + "%";
-  const titleIn = spring({ frame: local - 10, fps, config: { damping: 24, stiffness: 90 } });
-  const titleOpacity = interpolate(titleIn, [0, 1], [0, 1]) * Math.min(1, exit);
-  const revealTitle = feature.key === "talk" || feature.key === "voiceMusic";
-  return <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#090f14" }}>
-    <Video
+  return <Video
       src={staticFile(`captures/scene-3/${feature.capture}`)}
       volume={(localFrame) => interpolate(localFrame, [0, feature.appAudioAfter, feature.appAudioAfter + 18], [0, 0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) })}
-      style={{ position: "absolute", width: 1920, height: 1080, left: 0, top: 0, transform: `scale(${scale})`, transformOrigin: `50% ${focusY}` }}
-    />
-    <div style={{ position: "absolute", inset: 0, opacity: titleOpacity, pointerEvents: "none", background: "linear-gradient(90deg,rgba(4,9,12,.34),transparent 52%)" }} />
-    <div style={{ position: "absolute", left: 94, top: 68, opacity: titleOpacity, transform: `translateY(${interpolate(titleIn,[0,1],[16,0])}px)`, color: milk, fontFamily: "Arial,sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: ".13em", textTransform: "uppercase", textShadow: "0 2px 18px rgba(0,0,0,.8)" }}>
-      {revealTitle && <span style={{ display: "inline-grid", width: 31, height: 34, placeItems: "center", marginRight: 12, border: "1px solid rgba(239,183,109,.84)", borderBottomWidth: 4, borderRadius: 6, color: "#efb76d", background: "rgba(8,14,19,.62)" }}>N</span>}
-      {revealTitle ? "Hold N to talk" : feature.title}
-    </div>
-  </div>;
+      style={{ position: "absolute", width: 1920, height: 1080, left: 0, top: 0 }}
+    />;
 };
 
 export const NearFeatureWalkthrough: React.FC<NearFeatureWalkthroughProps> = ({
@@ -205,24 +173,14 @@ export const NearFeatureWalkthrough: React.FC<NearFeatureWalkthroughProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const active = FEATURE_CAPTURE_SLOTS.find((feature) => frame >= feature.start && frame < feature.end) ?? FEATURE_CAPTURE_SLOTS[FEATURE_CAPTURE_SLOTS.length - 1];
-  const beatFrame = frame - active.start;
-  const beatLength = active.end - active.start;
-  const push = interpolate(beatFrame, [0, beatLength], [1.17, 1.195], { extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   const closeFade = interpolate(frame, [12, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.quad) });
   const activeHasCapture = recordedCaptures[active.key] === true;
   return <div style={{ position: "relative", width: 1920, height: 1080, overflow: "hidden", background: "#080e13", color: milk }}>
-    {narrationEnabled && FEATURE_CAPTURE_SLOTS.map((feature) => <Sequence key={`narration-${feature.key}`} from={feature.start} durationInFrames={feature.end - feature.start}>
-      <Audio src={staticFile(`audio/${feature.narration}`)} />
-    </Sequence>)}
+    {narrationEnabled && <Audio src={staticFile("audio/near-feature-male.wav")} />}
     {musicEnabled && <Audio src={staticFile("audio/near-feature-walkthrough-music.wav")} volume={musicVolume(frame)} />}
 
-    {/* One-frame handoff starts on Scene 2's exact expanded verse frame. */}
-    {frame < 28 && <Freeze frame={899}>
-      <NearMeetReveal narrationEnabled={false} musicEnabled={false} />
-    </Freeze>}
-
     {!activeHasCapture && active.key !== "talk" && <div style={{ position: "absolute", inset: 0, opacity: closeFade, background: "radial-gradient(ellipse at 50% 40%, rgba(36,82,80,.24), transparent 62%), linear-gradient(180deg,#0b1218,#090e13 64%,#070b0e)" }}>
-      <div style={{ position: "absolute", left: "50%", top: "50%", width: 1464, height: 924, padding: 12, borderRadius: 25, boxSizing: "border-box", background: "linear-gradient(135deg,#697278,#20272d 36%,#4b555b 69%,#1d252b)", boxShadow: "0 42px 120px rgba(0,0,0,.72), 0 0 0 1px rgba(216,233,225,.19)", transform: `translate(-50%,-50%) scale(${push})`, transformOrigin: "center center" }}>
+      <div style={{ position: "absolute", left: "50%", top: "50%", width: 1464, height: 924, padding: 12, borderRadius: 25, boxSizing: "border-box", background: "linear-gradient(135deg,#697278,#20272d 36%,#4b555b 69%,#1d252b)", boxShadow: "0 42px 120px rgba(0,0,0,.72), 0 0 0 1px rgba(216,233,225,.19)", transform: "translate(-50%,-50%)" }}>
         <div style={{ position: "relative", width: 1440, height: 900, overflow: "hidden", borderRadius: 15, background: "#eef1f4" }}>
           <WorkWindow />
           <Img src={staticFile("captures/near-notch-expanded.png")} style={{ position: "absolute", zIndex: 8, left: 380, top: 32, width: 680, height: 180, transform: "scale(1.2)", transformOrigin: "center top" }} />
@@ -231,7 +189,7 @@ export const NearFeatureWalkthrough: React.FC<NearFeatureWalkthroughProps> = ({
       </div>
     </div>}
 
-    {!activeHasCapture && active.key === "talk" && <Video muted startFrom={180} src={staticFile("captures/scene3_manual_capture/talktonear.webm")} style={{position: "absolute", opacity:closeFade, width: "100%", height: "100%", background: "#080e13", transform: `scale(${interpolate(frame,[90,245],[1,1.22],{extrapolateLeft:"clamp",extrapolateRight:"clamp",easing:Easing.inOut(Easing.cubic)})})`, transformOrigin:"50% 0%"}} />}
+    {!activeHasCapture && active.key === "talk" && <Video muted startFrom={180} src={staticFile("captures/scene3_manual_capture/talktonear.webm")} style={{position: "absolute", opacity:closeFade, width: "100%", height: "100%", background: "#080e13"}} />}
     {FEATURE_CAPTURE_SLOTS.map((feature) => recordedCaptures[feature.key] ? <Sequence key={`capture-${feature.key}`} from={feature.start} durationInFrames={feature.end - feature.start}>
       <RecordedFeatureCapture feature={feature} />
     </Sequence> : null)}
@@ -249,10 +207,10 @@ export const NearFeatureWalkthrough: React.FC<NearFeatureWalkthroughProps> = ({
 export const NearFeatureWalkthroughComposition = () => <Composition
   id="NearFeatureWalkthrough"
   component={NearFeatureWalkthrough}
-  durationInFrames={6150}
+  durationInFrames={6300}
   fps={30}
   width={1920}
   height={1080}
   calculateMetadata={calculateMetadata}
-  defaultProps={{ narrationEnabled: true, musicEnabled: true, recordedCaptures: {} }}
+  defaultProps={{ narrationEnabled: true, musicEnabled: true, recordedCaptures: { talk: true, chat: true, bible: true, journey: true, notes: true, music: true, church: true, voiceMusic: true } }}
 />;

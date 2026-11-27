@@ -15,7 +15,7 @@ if (!apiKey || !voiceId) throw new Error("Set ELEVENLABS_API_KEY and ELEVENLABS_
 
 const cues = [
   ["Even on a busy day, there’s room for one verse, a moment to reflect, or a song that helps you turn your attention back to God.", "near-closing-01.mp3"],
-  ["That’s why we built NEAR. From Team ANCHOR, thanks for watching.", "near-closing-02.mp3"],
+  ["That’s why I built NEAR. From Team ANCHOR, thanks for watching.", "near-closing-02-solo.mp3"],
 ];
 const audioDir = join(projectDir, "public", "audio");
 await mkdir(audioDir, { recursive: true });

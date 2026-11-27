@@ -102,7 +102,7 @@ const AGENT_CHOICES: AgentChoice[] = ["ChatGPT", "Claude Code", "Local model"];
 function App() {
   const windowKind = new URLSearchParams(window.location.search).get("window");
   const isChatWindow = windowKind === "chat" || windowKind === "bible" || windowKind === "notes" || windowKind === "church" || windowKind === "settings" || windowKind === "faith";
-  const { resizeNotch, toggle, expanded, previewSize } = useNotchWindow();
+  const { resizeNotch, toggle, expanded, settledOpen, size } = useNotchWindow();
   const [collapseDelaySeconds, setCollapseDelaySeconds] = useState(loadCollapseDelaySeconds);
   const [activityCount, setActivityCount] = useState(0);
   const [pointerInside, setPointerInside] = useState(false);
@@ -743,7 +743,8 @@ function App() {
   return (
     <>
     <NotchFrame
-      previewSize={previewSize}
+      size={size}
+      settledOpen={settledOpen}
       onPointerEnter={() => setPointerInside(true)}
       onPointerLeave={() => setPointerInside(false)}
       onPointerDown={() => {

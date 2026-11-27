@@ -18,11 +18,11 @@ const cues = [
   "Let’s start with voice. If I’m between tasks and want a moment to pause, I can talk to NEAR right from my desktop. I hold N and ask.",
   "If I’m somewhere quiet, I can type instead. Here, I’ll ask NEAR for a question I can reflect on after reading the passage.",
   "I can also open the Bible directly. I’ll pick a passage and press the read-aloud control. When I want to slow down and listen, NEAR can read the passage to me.",
-  "In Journey, I can create a personal goal for my walk with God. I’ll set one I can actually follow this week: ‘Read one Bible verse and write a short reflection on three workdays.’",
+  "In Journey, I can create a personal goal for my walk with God. I’ll set one I can actually follow this week.",
   "When a passage gives me something I want to remember, I can write it down in Notes. I’ll add a short reflection and include the verse reference. Later, I can click that reference right from my note and open it again.",
   "If I’m already listening to worship music, I can control it right here in NEAR. I can pause the song and pick up where I left off.",
-  "Church gives me one place to see my church activities. I can open the calendar, check what’s coming up, and see the details for something like this week’s small-group meeting.",
-  "Here’s one more thing. I can start a worship song by asking NEAR out loud. I hold N and say.",
+  "Church gives me one place to see my church activities. I can open the calendar, check what’s coming up, and see the details for something I planned.",
+  "Here’s one more thing. I can start a worship song by asking NEAR out loud. Play music, Nothing Is Impossible by Planetshakers.",
 ];
 
 const audioDir = join(projectDir, "public", "audio");

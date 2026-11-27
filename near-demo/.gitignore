@@ -7,3 +7,8 @@ dist
 out
 
 build
+
+# Raw recordings and local render intermediates stay on the editing machine.
+screenrecord/
+public/captures/scene-3/*.partial.mp4
+scripts/__pycache__/
