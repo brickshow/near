@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { speakNear, stopNearVoice } from "../../lib/voice";
 import { BibleOpening } from "./BibleOpening";
 
-const INTRO = "Hello, Brix. I'm NEAR. I'm here to help you stay close to God through prayer and Scripture.";
+const INTRO = "Hello. I'm NEAR. I'm here to help you stay close to God through prayer and Scripture.";
 
 type SplashPageProps = { intro?: boolean; voiceName?: string; onComplete?: () => void };
 
@@ -35,7 +35,7 @@ export function SplashPage({ intro = false, voiceName = "", onComplete }: Splash
   return <section className="relative z-[1] flex h-full w-full flex-col items-center justify-center overflow-hidden" aria-label={intro ? "NEAR's introduction" : "NEAR is starting"}>
     <BibleOpening speaking={intro && playback === "speaking"} compact={intro && playback === "error"} />
     <div className="bible-splash-copy mt-[-3px] text-center">
-      <h1 className="m-0 text-[17px] font-semibold tracking-[-.02em] text-[#eafaff]">{intro ? "Hello, Brix." : "NEAR"}</h1>
+      <h1 className="m-0 text-[17px] font-semibold tracking-[-.02em] text-[#eafaff]">{intro ? "Hello" : "NEAR"}</h1>
       {intro && playback === "error" ? <div>
         <p role="alert" className="mb-1 mt-1 text-[10px] text-[#c0d5df]">The introduction couldn't play.</p>
         <div className="flex justify-center gap-3 text-[10px] text-[#91e8ef]">

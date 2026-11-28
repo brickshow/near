@@ -194,8 +194,8 @@ export function SettingsPage({ voiceName, onVoiceChange }: Props) {
       </div>
       <label className="settings-switch-row settings-mouse-control">
         <span className="settings-control-copy"><strong>Mouse movement control</strong><small>{mouseControl
-          ? "Eyes follow the cursor. Moving it reveals NEAR after it hides."
-          : "Movement will not move the eyes or reveal a hidden notch. Use the tray icon or Ctrl+Shift+Space."}</small></span>
+          ? "Eyes follow the cursor. Hover over the hidden notch at the top center to show NEAR."
+          : "Eyes stay still. Hover over the hidden notch at the top center to show NEAR."}</small></span>
         <input type="checkbox" checked={mouseControl} disabled={!isTauri()} onChange={async event => {
           const enabled = event.target.checked;
           setMouseControlError("");

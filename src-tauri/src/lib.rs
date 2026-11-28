@@ -41,6 +41,7 @@ static NOTCH_IDLE_GENERATION: AtomicU64 = AtomicU64::new(0);
 static NOTCH_AUTO_HIDDEN: AtomicBool = AtomicBool::new(false);
 static NOTCH_MOUSE_CONTROL: AtomicBool = AtomicBool::new(true);
 static NOTCH_AUTO_HIDE_SECONDS: AtomicU64 = AtomicU64::new(15);
+static NOTCH_HOVER_WIDTH: AtomicU64 = AtomicU64::new(320);
 static NOTCH_AUTO_HIDE_CONFIGURED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Serialize)]
@@ -1111,6 +1112,7 @@ fn set_notch_bounds(window: tauri::WebviewWindow, width: f64, height: f64) -> Re
     let max_height = (monitor.size().height as i32 - (40.0 * scale).round() as i32).max((36.0 * scale) as i32);
     let width = ((width.clamp(320.0, 680.0) * scale).round() as i32).min(max_width);
     let height = ((height.clamp(36.0, 180.0) * scale).round() as i32).min(max_height);
+    NOTCH_HOVER_WIDTH.store(width as u64, Ordering::SeqCst);
     let y = monitor.position().y;
 
     #[cfg(windows)]
@@ -1235,13 +1237,21 @@ fn restart_notch_idle_watch(window: tauri::WebviewWindow) {
             if moved {
                 last_cursor = cursor;
                 last_movement = Instant::now();
-                if NOTCH_MOUSE_CONTROL.load(Ordering::SeqCst) {
-                    let _ = window.emit("near://notch-cursor-move", NotchCursorMove { x: cursor.0, y: cursor.1 });
-                    if NOTCH_AUTO_HIDDEN.swap(false, Ordering::SeqCst) {
+                if NOTCH_AUTO_HIDDEN.load(Ordering::SeqCst) {
+                    let Ok(origin) = window.outer_position() else { continue };
+                    let center_x = origin.x as f64 + window.outer_size().map(|size| size.width as f64 / 2.0).unwrap_or(340.0);
+                    let hover_width = NOTCH_HOVER_WIDTH.load(Ordering::SeqCst) as f64;
+                    let inside_near = cursor.0 >= center_x - hover_width / 2.0
+                        && cursor.0 <= center_x + hover_width / 2.0
+                        && cursor.1 <= origin.y as f64 + 2.0;
+                    if inside_near {
+                        NOTCH_AUTO_HIDDEN.store(false, Ordering::SeqCst);
                         let _ = window.unminimize();
                         let _ = window.show();
                         let _ = window.set_always_on_top(true);
                     }
+                } else if NOTCH_MOUSE_CONTROL.load(Ordering::SeqCst) {
+                    let _ = window.emit("near://notch-cursor-move", NotchCursorMove { x: cursor.0, y: cursor.1 });
                 }
             } else if hide_configured
                 && hide_seconds > 0
